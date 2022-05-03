@@ -29,6 +29,8 @@ import (
 //  - echo "prod bacon"
 //  - echo "prod eggs"
 type Matrix struct {
+	StepCommon
+
 	KVs KeyValues `json:"kvs,omitempty"`
 
 	// Includes lets you add additional configuration options to a build matrix step/task that already exists.

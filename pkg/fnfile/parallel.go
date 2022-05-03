@@ -5,6 +5,8 @@ import (
 )
 
 type Parallel struct {
+	StepCommon
+
 	Steps    []Step `json:"steps"`
 	FailFast bool   `json:"failFast"`
 	Limit    int    `json:"limit"`

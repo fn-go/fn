@@ -10,6 +10,6 @@ type ReturnSpec struct {
 	StepCommon
 }
 
-func (r *ReturnSpec) Visit(cancel context.CancelFunc, v StepVisitor) error {
-	return v.VisitReturn(cancel, r)
+func (r *ReturnSpec) Visit(ctx context.Context, v StepVisitor) error {
+	return v.VisitReturn(ctx, r)
 }

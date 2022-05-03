@@ -14,21 +14,22 @@ type StepVisitor interface {
 	VisitTry(ctx context.Context, try *Try) error
 	VisitSh(ctx context.Context, sh *Sh) error
 	VisitDefer(ctx context.Context, spec *DeferSpec) error
-	VisitReturn(cancel context.CancelFunc, spec *ReturnSpec) error
+	VisitReturn(ctx context.Context, spec *ReturnSpec) error
 	VisitMatrix(ctx context.Context, matrix *Matrix) error
 	VisitWait(ctx context.Context, wait *Wait) error
 }
 
 type Step interface {
+	GetName() string
 	Visit(ctx context.Context, v StepVisitor) error
 }
 
 // StepCommon is a specific command (or even another task) to execute
 // The use of Run & Args is mutually exclusive with Task
 type StepCommon struct {
-	StepVisitor
+	Step
 
-	Id string `json:"id,omitempty"`
+	Name string `json:"name"`
 
 	Locals *Vars `json:"vars,omitempty"`
 

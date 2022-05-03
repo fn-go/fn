@@ -5,6 +5,8 @@ import (
 )
 
 type Do struct {
+	StepCommon
+
 	Steps []Step `json:"steps"`
 }
 

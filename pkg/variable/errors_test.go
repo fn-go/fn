@@ -3,10 +3,8 @@ package variable
 import (
 	"testing"
 
-	"github.com/brianvoe/gofakeit/v6"
+	"github.com/stretchr/testify/assert"
 )
-
-var faker = gofakeit.New(0)
 
 func Test_cyclicalError_Error(t *testing.T) {
 	tests := []struct {
@@ -17,14 +15,12 @@ func Test_cyclicalError_Error(t *testing.T) {
 		{
 			name: "human readable error string",
 			err:  NewCyclicalError("hello", "world"),
-			want: "cyclical request detected for lazy var: hello: from: world",
+			want: "cyclical request detected for lazy var: [ hello ]: from: [ world ]",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.err.Error(); got != tt.want {
-				t.Errorf("Error() = %v, want %v", got, tt.want)
-			}
+			assert.EqualError(t, tt.err, tt.want)
 		})
 	}
 }

@@ -11,11 +11,6 @@ type Fn struct {
 	// Outputs are values that are available via contexts.Fn
 	Outputs *Vars `json:"outputs,omitempty"`
 
-	// Labels are intended to be used to specify identifying attributes of fns that are
-	// meaningful and relevant to users, but do not directly imply semantics to the core system.
-	// Labels can be used to organize and to select subsets of fns.
-	Labels map[string]string `json:"labels,omitempty"`
-
 	// Short is the short description shown in the 'help' output.
 	Short string `json:"short,omitempty"`
 
@@ -48,15 +43,6 @@ type Fn struct {
 	// SerialGroups is an array of arbitrary label-like strings. Executions of this fn
 	// and other fns referencing the same tags will be serialized.
 	SerialGroups SerialGroups `json:"serialGroups,omitempty"`
-
-	// From matched files have their contents hashed.
-	// If the content hashes change between runs, this fn will be marked as "out-of-date".
-	From FileGlobs `json:"from,omitempty"`
-
-	// Makes matched files are checked to exist.
-	// If these files do not exist, this fn will be marked as "out-of-date".
-	// When providing a glob, only 1 match is required to keep this fn "up-to-date".
-	Makes FileGlobs `json:"makes,omitempty"`
 
 	// Matrix is a step/fn hook to define a matrix of step/fn configurations.
 	//
