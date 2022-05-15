@@ -26,6 +26,8 @@ import (
 	"github.com/go-fn/fn/internal/term"
 
 	"github.com/spf13/cobra"
+
+	// Note that this is being replaced in go.mod with the cornfeedhobo fork
 	flag "github.com/spf13/pflag"
 )
 
@@ -68,7 +70,7 @@ type templater struct {
 	Filtered []string
 }
 
-func (templater *templater) FlagErrorFunc(exposedFlags ...string) func(*cobra.Command, error) error {
+func (_ *templater) FlagErrorFunc(_ ...string) func(*cobra.Command, error) error {
 	return func(c *cobra.Command, err error) error {
 		c.SilenceUsage = true
 		switch c.CalledAs() {
@@ -80,35 +82,35 @@ func (templater *templater) FlagErrorFunc(exposedFlags ...string) func(*cobra.Co
 	}
 }
 
-func (templater *templater) ExposeFlags(cmd *cobra.Command, flags ...string) FlagExposer {
-	cmd.SetUsageFunc(templater.UsageFunc(flags...))
-	return templater
+func (t *templater) ExposeFlags(cmd *cobra.Command, flags ...string) FlagExposer {
+	cmd.SetUsageFunc(t.UsageFunc(flags...))
+	return t
 }
 
-func (templater *templater) HelpFunc() func(*cobra.Command, []string) {
+func (t *templater) HelpFunc() func(*cobra.Command, []string) {
 	return func(c *cobra.Command, s []string) {
-		t := template.New("help")
-		t.Funcs(templater.templateFuncs())
-		template.Must(t.Parse(templater.HelpTemplate))
+		tpl := template.New("help")
+		tpl.Funcs(t.templateFuncs())
+		template.Must(tpl.Parse(t.HelpTemplate))
 		out := term.NewResponsiveWriter(c.OutOrStdout())
-		err := t.Execute(out, c)
+		err := tpl.Execute(out, c)
 		if err != nil {
 			c.Println(err)
 		}
 	}
 }
 
-func (templater *templater) UsageFunc(exposedFlags ...string) func(*cobra.Command) error {
+func (t *templater) UsageFunc(exposedFlags ...string) func(*cobra.Command) error {
 	return func(c *cobra.Command) error {
-		t := template.New("usage")
-		t.Funcs(templater.templateFuncs(exposedFlags...))
-		template.Must(t.Parse(templater.UsageTemplate))
+		tpl := template.New("usage")
+		tpl.Funcs(t.templateFuncs(exposedFlags...))
+		template.Must(tpl.Parse(t.UsageTemplate))
 		out := term.NewResponsiveWriter(c.OutOrStderr())
-		return t.Execute(out, c)
+		return tpl.Execute(out, c)
 	}
 }
 
-func (templater *templater) templateFuncs(exposedFlags ...string) template.FuncMap {
+func (t *templater) templateFuncs(exposedFlags ...string) template.FuncMap {
 	return template.FuncMap{
 		"trim":                strings.TrimSpace,
 		"trimRight":           func(s string) string { return strings.TrimRightFunc(s, unicode.IsSpace) },
@@ -120,18 +122,18 @@ func (templater *templater) templateFuncs(exposedFlags ...string) template.FuncM
 		"flagsNotIntersected": flagsNotIntersected,
 		"visibleFlags":        visibleFlags,
 		"flagsUsages":         flagsUsages,
-		"cmdGroups":           templater.cmdGroups,
-		"cmdGroupsString":     templater.cmdGroupsString,
-		"rootCmd":             templater.rootCmdName,
-		"isRootCmd":           templater.isRootCmd,
-		"optionsCmdFor":       templater.optionsCmdFor,
-		"usageLine":           templater.usageLine,
+		"cmdGroups":           t.cmdGroups,
+		"cmdGroupsString":     t.cmdGroupsString,
+		"rootCmd":             t.rootCmdName,
+		"isRootCmd":           t.isRootCmd,
+		"optionsCmdFor":       t.optionsCmdFor,
+		"usageLine":           t.usageLine,
 		"exposed": func(c *cobra.Command) *flag.FlagSet {
 			exposed := flag.NewFlagSet("exposed", flag.ContinueOnError)
 			if len(exposedFlags) > 0 {
 				for _, name := range exposedFlags {
-					if flag := c.Flags().Lookup(name); flag != nil {
-						exposed.AddFlag(flag)
+					if f := c.Flags().Lookup(name); f != nil {
+						exposed.AddFlag(f)
 					}
 				}
 			}
@@ -140,10 +142,10 @@ func (templater *templater) templateFuncs(exposedFlags ...string) template.FuncM
 	}
 }
 
-func (templater *templater) cmdGroups(c *cobra.Command, all []*cobra.Command) []CommandGroup {
-	if len(templater.CommandGroups) > 0 && c == templater.RootCmd {
-		all = filter(all, templater.Filtered...)
-		return AddAdditionalCommands(templater.CommandGroups, "Other Commands:", all)
+func (t *templater) cmdGroups(c *cobra.Command, all []*cobra.Command) []CommandGroup {
+	if len(t.CommandGroups) > 0 && c == t.RootCmd {
+		all = filter(all, t.Filtered...)
+		return AddAdditionalCommands(t.CommandGroups, "Other Commands:", all)
 	}
 	all = filter(all, "options")
 	return []CommandGroup{

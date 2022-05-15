@@ -1,15 +1,11 @@
 package fnfile
 
-import (
-	"context"
-)
-
 // ReturnSpec is a step hook which allows a fn to return early (skipping subsequent steps) just like
 // a `return` statement in Go.
 type ReturnSpec struct {
-	StepCommon
+	*StepCommon
 }
 
-func (r *ReturnSpec) Visit(ctx context.Context, v StepVisitor) error {
-	return v.VisitReturn(ctx, r)
+func (r *ReturnSpec) Exec(_ ResponseWriter, c *CallInfo) {
+	c.Context().Done()
 }

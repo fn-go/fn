@@ -1,6 +1,10 @@
 package fnfile
 
-type Fnfile struct {
+import (
+	"encoding/json"
+)
+
+type FnFile struct {
 	// Version is the version of the Fn schema
 	// It is the first thing that is parsed by Task in order to inform how the rest of the file should be parsed.
 	Version string `json:"version,omitempty"`
@@ -17,5 +21,24 @@ type Fnfile struct {
 	Includes Includes `json:"includes,omitempty"`
 
 	// Fns is a set of function definitions
-	Fns map[string]Fn `json:"tasks,omitempty"`
+	Fns map[string]Fn `json:"fns,omitempty"`
+}
+
+func (fnfile *FnFile) UnmarshalJSON(data []byte) error {
+	type FnFileAlias FnFile
+	var tmpFnFile FnFileAlias
+
+	err := json.Unmarshal(data, &tmpFnFile)
+	if err != nil {
+		return err
+	}
+
+	for k, v := range tmpFnFile.Fns {
+		nv := v
+		nv.Name = k
+		tmpFnFile.Fns[k] = nv
+	}
+
+	*fnfile = FnFile(tmpFnFile)
+	return nil
 }

@@ -1,9 +1,5 @@
 package fnfile
 
-import (
-	"context"
-)
-
 // Matrix is a step/fn hook to define a matrix of step/fn configurations.
 //
 // A matrix allows you to create multiple steps/tasks by performing variable substitution
@@ -29,7 +25,7 @@ import (
 //  - echo "prod bacon"
 //  - echo "prod eggs"
 type Matrix struct {
-	StepCommon
+	*StepCommon
 
 	KVs KeyValues `json:"kvs,omitempty"`
 
@@ -37,8 +33,7 @@ type Matrix struct {
 	Includes KeyValues `json:"includes,omitempty"`
 }
 
-func (m *Matrix) Visit(ctx context.Context, v StepVisitor) error {
-	return v.VisitMatrix(ctx, m)
+func (m *Matrix) Exec(w ResponseWriter, c *CallInfo) {
 }
 
 type KeyValues struct {

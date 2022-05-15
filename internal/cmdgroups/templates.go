@@ -61,23 +61,23 @@ const (
 {{end}}`
 
 	// SectionTipsHelp is the help template section that displays the '--help' hint.
-	SectionTipsHelp = `{{if .HasSubCommands}}Use "{{$rootCmd}} <command> --help" for more information about a given command.
+	SectionTipsHelp = `{{if .HasSubCommands}}Use "{{$rootCmd}} <fn> --help" for more information about a given fn.
 {{end}}`
 
 	// SectionTipsGlobalOptions is the help template section that displays the 'options' hint for displaying global flags.
-	SectionTipsGlobalOptions = `{{if $optionsCmdFor}}Use "{{$optionsCmdFor}}" for a list of global command-line options (applies to all commands).
+	SectionTipsGlobalOptions = `{{if $optionsCmdFor}}Use "{{$optionsCmdFor}}" for a list of global command-line options (applies to all fns).
 {{end}}`
 )
 
 // MainHelpTemplate if the template for 'help' used by most commands.
 func MainHelpTemplate() string {
-	return `{{with or .Long .Short }}{{. | trim}}{{end}}{{if or .Runnable .HasSubCommands}}{{.UsageString}}{{end}}`
+	return `{{.Long}}{{.Short}}{{if or .Runnable .HasSubCommands}}{{.UsageString}}{{end}}`
 }
 
 // MainUsageTemplate if the template for 'usage' used by most commands.
 func MainUsageTemplate() string {
 	sections := []string{
-		"\n\n",
+		"\n",
 		SectionVars,
 		SectionAliases,
 		SectionExamples,

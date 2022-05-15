@@ -7,8 +7,8 @@ import (
 type Params map[string]Param
 
 func (p *Params) UnmarshalJSON(data []byte) error {
-	type TmpParams Params
-	var tmpParams TmpParams
+	type ParamsAlias Params
+	var tmpParams ParamsAlias
 
 	err := json.Unmarshal(data, &tmpParams)
 	if err != nil {
@@ -20,7 +20,7 @@ func (p *Params) UnmarshalJSON(data []byte) error {
 	// once here, once in validate, feels bad, maybe it doesn't matter
 	for k, v := range tmpParams {
 		nv := v
-		nv.name = k
+		nv.Name = k
 		tmpParams[k] = nv
 	}
 
@@ -28,15 +28,10 @@ func (p *Params) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-type Param struct {
-	name     string
-	Variable `json:"default,omitempty"`
-}
+type Param Variable
 
 func ParamFromString(val string) Param {
-	return Param{
-		Variable: VariableFromString(val),
-	}
+	return Param(VariableFromString(val))
 }
 
 func (p *Param) UnmarshalJSON(data []byte) error {

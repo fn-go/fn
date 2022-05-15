@@ -1,4 +1,4 @@
-package engine
+package protocol
 
 import (
 	"fmt"
@@ -6,14 +6,14 @@ import (
 	"os"
 	"path"
 
-	"github.com/ghodss/yaml"
 	hfsos "github.com/hack-pad/hackpadfs/os"
 	"github.com/hashicorp/go-multierror"
+	"sigs.k8s.io/yaml"
 
 	"github.com/go-fn/fn/pkg/fnfile"
 )
 
-type Reader func() (*fnfile.Fnfile, error)
+type Reader func() (fnfile.FnFile, error)
 
 type YamlFileReaderOptions struct {
 	FS         StatReadFS
@@ -41,35 +41,27 @@ func YamlFileReader(options ...func(readerOptions *YamlFileReaderOptions)) Reade
 		o(opts)
 	}
 
-	return func() (*fnfile.Fnfile, error) {
+	return func() (file fnfile.FnFile, err error) {
 		var workingDir string
 		{
-			var err error
 			workingDir, err = opts.Getwd()
 			if err != nil {
-				return nil, fmt.Errorf("getting working directory: %w", err)
+				err = fmt.Errorf("getting working directory: %w", err)
+				return
 			}
 		}
 
 		var fnFileBytes []byte
 		{
-			var err error
 			fnFileBytes, err = opts.FileFinder(workingDir, opts.FS)
 			if err != nil {
-				return nil, fmt.Errorf("finding/reading file: %w", err)
+				err = fmt.Errorf("finding/reading file: %w", err)
+				return
 			}
 		}
 
-		var fnFile fnfile.Fnfile
-
-		{
-			err := yaml.Unmarshal(fnFileBytes, &fnFile)
-			if err != nil {
-				return nil, fmt.Errorf("unmarshalling yaml: %v\n", err)
-			}
-		}
-
-		return &fnFile, nil
+		err = yaml.Unmarshal(fnFileBytes, &file)
+		return
 	}
 }
 

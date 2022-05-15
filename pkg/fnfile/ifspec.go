@@ -1,20 +1,11 @@
 package fnfile
 
-import (
-	"context"
-)
-
 type IfSpec struct {
-}
-
-// ConditionVisitor is part of the Decoupled Visitor Pattern
-// https://making.pusher.com/alternatives-to-sum-types-in-go/
-type ConditionVisitor interface {
-	VisitFileCondition(ctx context.Context, fileCond *FileCondition) error
+	*StepCommon
 }
 
 type Condition interface {
-	Visit(ctx context.Context, v ConditionVisitor) error
+	Exec(w ResponseWriter, c *CallInfo)
 }
 
 type FileCondition struct {
@@ -30,8 +21,8 @@ type FileCondition struct {
 	Generates FileGlobs `json:"makes,omitempty"`
 }
 
-func (f *FileCondition) Visit(ctx context.Context, v ConditionVisitor) error {
-	return nil
+func (f *FileCondition) Exec(w ResponseWriter, c *CallInfo) {
+
 }
 
 type FnCondition struct {
@@ -40,8 +31,7 @@ type FnCondition struct {
 	Fn Fn `json:"fn"`
 }
 
-func (f *FnCondition) Visit(ctx context.Context, v ConditionVisitor) error {
-	return nil
+func (f *FnCondition) Exec(w ResponseWriter, c *CallInfo) {
 }
 
 type StepOutcomeCondition struct {

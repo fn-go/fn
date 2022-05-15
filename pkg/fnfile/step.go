@@ -1,41 +1,67 @@
 package fnfile
 
 import (
-	"context"
+	"encoding/json"
+
+	"github.com/ghostsquad/go-timejumper"
 )
 
-type Steps []string
-
-// StepVisitor is part of the Decoupled Visitor Pattern
-// https://making.pusher.com/alternatives-to-sum-types-in-go/
-type StepVisitor interface {
-	VisitDo(ctx context.Context, do *Do) error
-	VisitParallel(ctx context.Context, parallel *Parallel) error
-	VisitTry(ctx context.Context, try *Try) error
-	VisitSh(ctx context.Context, sh *Sh) error
-	VisitDefer(ctx context.Context, spec *DeferSpec) error
-	VisitReturn(ctx context.Context, spec *ReturnSpec) error
-	VisitMatrix(ctx context.Context, matrix *Matrix) error
-	VisitWait(ctx context.Context, wait *Wait) error
-}
+type Steps []Step
 
 type Step interface {
-	GetName() string
-	Visit(ctx context.Context, v StepVisitor) error
+	Exec(ResponseWriter, *CallInfo)
 }
 
 // StepCommon is a specific command (or even another task) to execute
 // The use of Run & Args is mutually exclusive with Task
 type StepCommon struct {
-	Step
-
-	Name string `json:"name"`
-
-	Locals *Vars `json:"vars,omitempty"`
-
-	// Timeout is the umbrella bounding time limit (duration) for the task before signalling for termination via SIGINT.
+	Name   string `json:"name"`
+	Locals Vars   `json:"vars,omitempty"`
+	// Timeout is the bounding time limit (duration) for  before signalling for termination
 	Timeout Duration `json:"timeout,omitempty"`
+	clock   timejumper.Clock
+}
 
-	// GracefulTermination is the bounding time limit (duration) for this task before sending subprocesses a SIGKILL.
-	GracefulTermination Duration `json:"gracefulTermination,omitempty"`
+type StepCommonOptions struct {
+	Locals  Vars
+	Timeout Duration
+	Clock   timejumper.Clock
+}
+
+type StepCommonOption func(options *StepCommonOptions)
+
+func NewStepCommon(name string, options ...StepCommonOption) StepCommon {
+	opts := &StepCommonOptions{
+		Locals: make(Vars),
+		Clock:  timejumper.RealClock{},
+	}
+	for _, o := range options {
+		o(opts)
+	}
+
+	return StepCommon{
+		Name:    name,
+		Locals:  opts.Locals,
+		clock:   opts.Clock,
+		Timeout: opts.Timeout,
+	}
+}
+
+func (s *StepCommon) UnmarshalJSON(data []byte) error {
+	type StepCommonAlias StepCommon
+	var tmpStepCommon StepCommonAlias
+
+	err := json.Unmarshal(data, &tmpStepCommon)
+	if err != nil {
+		return err
+	}
+
+	if tmpStepCommon.Locals == nil {
+		tmpStepCommon.Locals = make(Vars)
+	}
+
+	tmpStepCommon.clock = timejumper.RealClock{}
+
+	*s = StepCommon(tmpStepCommon)
+	return nil
 }

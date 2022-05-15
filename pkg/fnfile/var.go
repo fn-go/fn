@@ -29,7 +29,7 @@ func (v *Vars) UnmarshalJSON(data []byte) error {
 }
 
 type Variable struct {
-	name   string
+	Name   string `json:"-"`
 	Static string `json:"static,omitempty"`
 	Tpl    string `json:"tpl,omitempty"`
 	Sh     Sh     `json:"sh,omitempty"`

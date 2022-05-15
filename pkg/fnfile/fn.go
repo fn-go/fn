@@ -1,15 +1,21 @@
 package fnfile
 
+import (
+	"encoding/json"
+)
+
 type Fn struct {
+	Name string `json:"-"`
+
 	// Inputs are parameters for this Fn, used when called by another Fn.
 	//
 	Inputs Inputs `json:"inputs,omitempty"`
 
 	// Locals are values only available inside this fn via contexts.Locals
-	Locals *Vars `json:"locals,omitempty"`
+	Locals Vars `json:"locals,omitempty"`
 
 	// Outputs are values that are available via contexts.Fn
-	Outputs *Vars `json:"outputs,omitempty"`
+	Outputs Vars `json:"outputs,omitempty"`
 
 	// Short is the short description shown in the 'help' output.
 	Short string `json:"short,omitempty"`
@@ -76,8 +82,29 @@ type Fn struct {
 
 	// Timeout is the bounding time limit (duration) for the fn before signalling for termination via SIGINT.
 	Timeout Duration `json:"Timeout,omitempty"`
+}
 
-	// TerminateAfter is the bounding time limit (duration) for this fn before sending subprocesses a SIGKILL.
-	// Usually specified as a longer duration that timeout.
-	TerminateAfter Duration `json:"terminateAfter,omitempty"`
+func (fn *Fn) UnmarshalJSON(data []byte) error {
+	var shRun string
+	err := json.Unmarshal(data, &shRun)
+	if err == nil {
+		*fn = Fn{
+			Do: Steps{
+				NewSh(shRun, shRun),
+			},
+		}
+
+		return nil
+	}
+
+	type FnAlias Fn
+	var tmpFn FnAlias
+
+	err = json.Unmarshal(data, &tmpFn)
+	if err != nil {
+		return err
+	}
+
+	*fn = Fn(tmpFn)
+	return nil
 }

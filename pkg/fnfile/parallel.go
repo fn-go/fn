@@ -1,17 +1,16 @@
 package fnfile
 
-import (
-	"context"
-)
-
 type Parallel struct {
-	StepCommon
+	*StepCommon
 
 	Steps    []Step `json:"steps"`
 	FailFast bool   `json:"failFast"`
 	Limit    int    `json:"limit"`
 }
 
-func (p *Parallel) Visit(ctx context.Context, v StepVisitor) error {
-	return v.VisitParallel(ctx, p)
+// TODO implement fail fast
+func (p *Parallel) Exec(w ResponseWriter, c *CallInfo) {
+	for _, s := range p.Steps {
+		go s.Exec(w, c)
+	}
 }
