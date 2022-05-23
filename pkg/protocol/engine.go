@@ -5,16 +5,12 @@ import (
 	"context"
 	"sync"
 
-	"github.com/ghostsquad/go-timejumper"
-
 	"github.com/go-fn/fn/pkg/fnfile"
 )
 
 type Engine struct {
 	cancel context.CancelFunc
 	mu     sync.Mutex
-	m      map[string]Handler
-	time   timejumper.Clock
 	writer fnfile.ResponseWriter
 }
 
@@ -34,36 +30,10 @@ func New(options ...func(engineOptions *EngineOptions)) (*Engine, error) {
 
 	eng := Engine{
 		mu:     sync.Mutex{},
-		m:      make(map[string]Handler),
-		time:   timejumper.RealClock{},
 		writer: opts.Writer,
 	}
 
 	return &eng, nil
-}
-
-type Handler interface {
-	Do(context.Context, *fnfile.Step)
-}
-
-type HandleFunc func(context.Context, *fnfile.Step) error
-
-func (g *Engine) Handle(name string, handler Handler) {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
-	if name == "" {
-		panic("invalid name")
-	}
-	if handler == nil {
-		panic("invalid handler")
-	}
-
-	if g.m == nil {
-		g.m = make(map[string]Handler)
-	}
-
-	g.m[name] = handler
 }
 
 func (g *Engine) Run(parentCtx context.Context, fn fnfile.Fn) error {
@@ -72,13 +42,6 @@ func (g *Engine) Run(parentCtx context.Context, fn fnfile.Fn) error {
 
 	in := &bytes.Buffer{}
 
-	for _, s := range fn.Do {
-		s.Exec(g.writer, fnfile.NewCallInfo(ctx, in))
-		err := g.writer.ErrorOrNil()
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	fn.Do.Exec(g.writer, fnfile.NewCallInfo(ctx, in))
+	return g.writer.ErrorOrNil()
 }

@@ -1,44 +1,12 @@
 package fnfile
 
-import (
-	"encoding/json"
+const (
+	DoStepType StepType = "do"
 )
 
 type Do struct {
-	StepCommon
+	StepMeta
 	Steps []Step `json:"steps"`
-}
-
-type DoOptions struct {
-	Steps             []Step
-	StepCommonOptions []StepCommonOption
-}
-
-type DoOption func(options *DoOptions)
-
-func NewDo(name string, options ...DoOption) Do {
-	opts := &DoOptions{}
-	for _, o := range options {
-		o(opts)
-	}
-
-	return Do{
-		StepCommon: NewStepCommon(name, opts.StepCommonOptions...),
-		Steps:      opts.Steps,
-	}
-}
-
-func (do *Do) UnmarshalJSON(data []byte) error {
-	type DoAlias Do
-	var tmpDo DoAlias
-
-	err := json.Unmarshal(data, &tmpDo)
-	if err != nil {
-		return err
-	}
-
-	*do = Do(tmpDo)
-	return nil
 }
 
 func (do Do) Exec(w ResponseWriter, c *CallInfo) {

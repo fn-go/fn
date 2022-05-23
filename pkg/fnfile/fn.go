@@ -2,13 +2,64 @@ package fnfile
 
 import (
 	"encoding/json"
+	"fmt"
+
+	"github.com/samber/lo"
 )
+
+type Fns map[string]Fn
+
+func (f *Fns) UnmarshalJSON(data []byte) error {
+	tmpVal := make(Fns)
+
+	err := UnmarshalJSONToNamedMap(tmpVal, func(name string) Fn {
+		return Fn{
+			Name: name,
+		}
+	}, data)
+	if err != nil {
+		return err
+	}
+
+	*f = tmpVal
+	return nil
+}
+
+type RunOption string
+
+func (r *RunOption) UnmarshalJSON(data []byte) error {
+	var tmpVal string
+	err := json.Unmarshal(data, &tmpVal)
+	if err != nil {
+		return err
+	}
+
+	onceValue := "once"
+
+	if tmpVal == "" {
+		*r = RunOption(onceValue)
+		return nil
+	}
+
+	validValues := []string{
+		onceValue,
+		"unlimited",
+	}
+
+	if lo.Contains(validValues, tmpVal) {
+		*r = RunOption(tmpVal)
+		return nil
+	}
+
+	return fmt.Errorf("unknown run value: %s, valid values are: %v", tmpVal, validValues)
+}
 
 type Fn struct {
 	Name string `json:"-"`
 
+	Run RunOption `json:"run,omitempty"`
+
 	// Inputs are parameters for this Fn, used when called by another Fn.
-	//
 	Inputs Inputs `json:"inputs,omitempty"`
 
 	// Locals are values only available inside this fn via contexts.Locals
@@ -26,8 +77,8 @@ type Fn struct {
 	// Example is examples of how to use the fn.
 	Example string `json:"example,omitempty"`
 
-	// Steps are the things that will run in serial
-	Do Steps `json:"do,omitempty"`
+	// Do are steps that run serially
+	Do Do `json:"do,omitempty"`
 
 	// Dir is the directory in which steps will be executed from (default: fnfile.yml directory)
 	// This dir is available as a context to sub steps, and thus, those steps can use it to make decisions,
@@ -82,29 +133,4 @@ type Fn struct {
 
 	// Timeout is the bounding time limit (duration) for the fn before signalling for termination via SIGINT.
 	Timeout Duration `json:"Timeout,omitempty"`
-}
-
-func (fn *Fn) UnmarshalJSON(data []byte) error {
-	var shRun string
-	err := json.Unmarshal(data, &shRun)
-	if err == nil {
-		*fn = Fn{
-			Do: Steps{
-				NewSh(shRun, shRun),
-			},
-		}
-
-		return nil
-	}
-
-	type FnAlias Fn
-	var tmpFn FnAlias
-
-	err = json.Unmarshal(data, &tmpFn)
-	if err != nil {
-		return err
-	}
-
-	*fn = Fn(tmpFn)
-	return nil
 }

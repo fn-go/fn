@@ -34,11 +34,13 @@ func ExampleEngine_Run_do_sh() {
 
 	ctx := context.TODO()
 
-	fn := fnfile.Fn{
-		Do: fnfile.Steps{
-			fnfile.NewSh("hello", `echo "hello"`),
-		},
-	}
+	fn := fnfile.NewFn("test", func(fn *fnfile.Fn) {
+		fn.Do = fnfile.NewDo(func(do *fnfile.Do) {
+			do.Steps = fnfile.Steps{
+				fnfile.NewSh(`echo "hello"`),
+			}
+		})
+	})
 
 	panicOnError(eng.Run(ctx, fn))
 
@@ -54,17 +56,19 @@ func ExampleEngine_Run_do_nested() {
 
 	ctx := context.TODO()
 
-	fn := fnfile.Fn{
-		Do: fnfile.Steps{
-			fnfile.NewSh("1", `echo "hello from above"`),
-			fnfile.NewDo("2", func(options *fnfile.DoOptions) {
-				options.Steps = fnfile.Steps{
-					fnfile.NewSh("3", `echo "hello, I'm nested!"`),
-				}
-			}),
-			fnfile.NewSh("4", `echo "goodbye from above"`),
-		},
-	}
+	fn := fnfile.NewFn("test", func(fn *fnfile.Fn) {
+		fn.Do = fnfile.NewDo(func(do *fnfile.Do) {
+			do.Steps = fnfile.Steps{
+				fnfile.NewSh(`echo "hello from above"`),
+				fnfile.NewDo(func(do *fnfile.Do) {
+					do.Steps = fnfile.Steps{
+						fnfile.NewSh(`echo "hello, I'm nested!"`),
+					}
+				}),
+				fnfile.NewSh(`echo "goodbye from above"`),
+			}
+		})
+	})
 
 	panicOnError(eng.Run(ctx, fn))
 
@@ -82,13 +86,15 @@ func ExampleEngine_Run_do_stop_on_failure() {
 
 	ctx := context.TODO()
 
-	fn := fnfile.Fn{
-		Do: fnfile.Steps{
-			fnfile.NewSh("1", `echo "first"`),
-			fnfile.NewSh("fail", "false"),
-			fnfile.NewSh("3", `echo "last"`),
-		},
-	}
+	fn := fnfile.NewFn("test", func(fn *fnfile.Fn) {
+		fn.Do = fnfile.NewDo(func(do *fnfile.Do) {
+			do.Steps = fnfile.Steps{
+				fnfile.NewSh(`echo "first"`),
+				fnfile.NewSh(`false`),
+				fnfile.NewSh(`echo "last"`),
+			}
+		})
+	})
 
 	err := eng.Run(ctx, fn)
 
@@ -105,26 +111,26 @@ func ExampleEngine_Run_defer() {
 
 	ctx := context.TODO()
 
-	fn := fnfile.Fn{
-		Do: fnfile.Steps{
-			fnfile.NewDeferSpec("1defer", func(options *fnfile.DeferSpecOptions) {
-				options.Do = fnfile.NewDo("1defer.do", func(options *fnfile.DoOptions) {
-					options.Steps = fnfile.Steps{
-						fnfile.NewSh("defer1.do.sh", `echo "defer 1: Sub steps of a defer step..."`),
-						fnfile.NewSh("defer1.do.sh", `echo "run sequentially"`),
+	fn := fnfile.NewFn("test", func(fn *fnfile.Fn) {
+		fn.Do = fnfile.NewDo(func(do *fnfile.Do) {
+			do.Steps = fnfile.Steps{
+				fnfile.NewDeferSpec(func(deferSpec *fnfile.DeferSpec) {
+					deferSpec.Name = "1defer"
+					deferSpec.Steps = fnfile.Steps{
+						fnfile.NewSh(`echo "defer 1: Sub steps of a defer step..."`),
+						fnfile.NewSh(`echo "defer 1: run sequentially"`),
 					}
-				})
-			}),
-			fnfile.NewDeferSpec("2defer", func(options *fnfile.DeferSpecOptions) {
-				options.Do = fnfile.NewDo("2defer.do", func(options *fnfile.DoOptions) {
-					options.Steps = fnfile.Steps{
-						fnfile.NewSh("defer2.do.sh", `echo "defer 2: Deferred function calls are executed in Last In First Out order. This should show up first."`),
+				}),
+				fnfile.NewDeferSpec(func(deferSpec *fnfile.DeferSpec) {
+					deferSpec.Name = "defer 2"
+					deferSpec.Steps = fnfile.Steps{
+						fnfile.NewSh(`echo "defer 2: Deferred function calls are executed in Last In First Out order. This should show up first."`),
 					}
-				})
-			}),
-			fnfile.NewSh("3sh", `echo "Hello, World"`),
-		},
-	}
+				}),
+				fnfile.NewSh(`echo "Hello, World"`),
+			}
+		})
+	})
 
 	panicOnError(eng.Run(ctx, fn))
 

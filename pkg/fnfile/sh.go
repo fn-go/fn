@@ -17,8 +17,12 @@ import (
 	"mvdan.cc/sh/v3/syntax"
 )
 
+const (
+	ShStepType StepType = "sh"
+)
+
 type Sh struct {
-	StepCommon
+	StepMeta
 
 	// Run defines a shell command.
 	Run string `json:"run,omitempty"`
@@ -27,32 +31,24 @@ type Sh struct {
 	Dir string `json:"dir,omitempty"`
 }
 
-type ShOptions struct {
-	Dir               string
-	Vars              Vars
-	StepCommonOptions []StepCommonOption
-}
-
-type ShOption func(options *ShOptions)
-
-func NewSh(name, run string, options ...ShOption) Sh {
-	opts := &ShOptions{}
-	for _, o := range options {
-		o(opts)
-	}
-
-	return Sh{
-		StepCommon: NewStepCommon(name, opts.StepCommonOptions...),
-		Run:        run,
-		Dir:        opts.Dir,
-	}
-}
-
 func (sh *Sh) UnmarshalJSON(data []byte) error {
+	// a Sh step can be shortcut represented as just a string
+
+	var tmpString string
+	err := json.Unmarshal(data, &tmpString)
+	if err == nil {
+		tmpSh := Sh{
+			Run:      tmpString,
+			StepMeta: NewStepMeta(ShStepType, nil),
+		}
+		*sh = tmpSh
+		return nil
+	}
+
 	type ShAlias Sh
 	var tmpSh ShAlias
 
-	err := json.Unmarshal(data, &tmpSh)
+	err = json.Unmarshal(data, &tmpSh)
 	if err != nil {
 		return err
 	}

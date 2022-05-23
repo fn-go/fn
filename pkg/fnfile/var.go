@@ -1,30 +1,20 @@
 package fnfile
 
-import (
-	"encoding/json"
-)
-
 type Vars map[string]Variable
 
 func (v *Vars) UnmarshalJSON(data []byte) error {
-	type TmpVars Vars
-	var tmpVars TmpVars
+	tmpVal := make(Vars)
 
-	err := json.Unmarshal(data, &tmpVars)
+	err := UnmarshalJSONToNamedMap(tmpVal, func(name string) Variable {
+		return Variable{
+			Name: name,
+		}
+	}, data)
 	if err != nil {
 		return err
 	}
 
-	// TODO fix double loop
-	// we are looping over this twice
-	// once here, once in validate, feels bad, maybe it doesn't matter
-	for k, v := range tmpVars {
-		nv := v
-		nv.name = k
-		tmpVars[k] = nv
-	}
-
-	*v = Vars(tmpVars)
+	*v = tmpVal
 	return nil
 }
 

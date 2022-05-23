@@ -5,8 +5,8 @@ package fnfile
 // A matrix allows you to create multiple steps/tasks by performing variable substitution
 // in a single step/fn definition.
 //
-// When defined on a StepCommon, it dynamically creates several steps. Each step is inlined, and are run serially.
-// StepCommon ordering is based on the order of each provided matrix.
+// When defined on a StepMeta, it dynamically creates several steps. Each step is inlined, and are run serially.
+// StepMeta ordering is based on the order of each provided matrix.
 // Example
 //
 //	task:
@@ -25,7 +25,7 @@ package fnfile
 //  - echo "prod bacon"
 //  - echo "prod eggs"
 type Matrix struct {
-	*StepCommon
+	StepMeta
 
 	KVs KeyValues `json:"kvs,omitempty"`
 
@@ -34,6 +34,7 @@ type Matrix struct {
 }
 
 func (m *Matrix) Exec(w ResponseWriter, c *CallInfo) {
+	validateHandlerParams(w, c)
 }
 
 type KeyValues struct {

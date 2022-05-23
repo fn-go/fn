@@ -2,8 +2,6 @@ package fnfile
 
 import (
 	"encoding/json"
-	"fmt"
-	"time"
 )
 
 type fromString[T any] func(val string) T
@@ -20,27 +18,23 @@ func UnmarshalJSONTryAsString[T any](data []byte, fromFn fromString[T]) (T, erro
 	return newT, err
 }
 
-// Duration uses time.ParseDuration (see https://pkg.go.dev/time#ParseDuration) for unmarshalling.
-type Duration time.Duration
+func UnmarshalJSONToNamedMap[T any](m map[string]T, newFn func(name string) T, data []byte) error {
+	mRaw := make(map[string]json.RawMessage)
 
-// MarshalJSON implements the json.Marshaler interface.
-func (t Duration) MarshalJSON() ([]byte, error) {
-	return json.Marshal(time.Duration(t).String())
-}
-
-// UnmarshalJSON implements the json.Unmarshaler interface.
-func (t *Duration) UnmarshalJSON(data []byte) error {
-	var txt string
-	err := json.Unmarshal(data, &txt)
-	if err != nil {
-		return fmt.Errorf("unmarshalling timeout: %w", err)
-	}
-
-	d, err := time.ParseDuration(txt)
+	err := json.Unmarshal(data, &mRaw)
 	if err != nil {
 		return err
 	}
 
-	*t = Duration(d)
+	for k, v := range mRaw {
+		tmpVal := newFn(k)
+		err := json.Unmarshal(v, &tmpVal)
+		if err != nil {
+			return err
+		}
+
+		m[k] = tmpVal
+	}
+
 	return nil
 }

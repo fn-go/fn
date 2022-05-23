@@ -1,7 +1,7 @@
 package fnfile
 
 type IfSpec struct {
-	*StepCommon
+	StepMeta
 }
 
 type Condition interface {
@@ -32,6 +32,7 @@ type FnCondition struct {
 }
 
 func (f *FnCondition) Exec(w ResponseWriter, c *CallInfo) {
+	validateHandlerParams(w, c)
 }
 
 type StepOutcomeCondition struct {

@@ -36,10 +36,6 @@ func OfE[T any](initFn func() (T, error)) Lazy[T] {
 type Lazy[T any] interface {
 	SetInit(fn func() (T, error))
 	Eval() (T, error)
-
-	// for now, we will not be allowing just anyone to create their own
-	// lazies
-	marker__()
 }
 
 type lazy[T any] struct {
@@ -51,8 +47,6 @@ type lazy[T any] struct {
 	id          uint64
 	requestedBy map[uint64]struct{}
 }
-
-func (l *lazy[T]) marker__() {}
 
 func (l *lazy[T]) SetInit(fn func() (T, error)) {
 	if l.done {
