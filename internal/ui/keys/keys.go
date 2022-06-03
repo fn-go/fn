@@ -6,10 +6,8 @@ import (
 )
 
 type KeyMap struct {
-	Up   key.Binding
-	Down key.Binding
-	//PageUp     key.Binding
-	//PageDown   key.Binding
+	Up         key.Binding
+	Down       key.Binding
 	PrevTab    key.Binding
 	NextTab    key.Binding
 	FocusLeft  key.Binding
@@ -25,7 +23,6 @@ func (k KeyMap) ShortHelp() []key.Binding {
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down},
-		//{k.PageUp, k.PageDown},
 		{k.PrevTab, k.NextTab},
 		{k.FocusLeft, k.FocusRight},
 		{k.Help, k.Quit},
@@ -42,14 +39,6 @@ func Keys() KeyMap {
 			key.WithKeys(tea.KeyDown.String(), "s"),
 			key.WithHelp("↓/s", "move down"),
 		),
-		//PageUp: key.NewBinding(
-		//	key.WithKeys("pgup", "b"),
-		//	key.WithHelp("b/pgup", "page up/back"),
-		//),
-		//PageDown: key.NewBinding(
-		//	key.WithKeys("pgdown", "f"),
-		//	key.WithHelp("f/pgdown", "page down/forward"),
-		//),
 		PrevTab: key.NewBinding(
 			key.WithKeys(tea.KeyLeft.String(), "a"),
 			key.WithHelp("/a", "previous section"),
@@ -62,13 +51,13 @@ func Keys() KeyMap {
 			// like vim
 			// https://github.com/christoomey/vim-tmux-navigator
 			key.WithKeys(tea.KeyCtrlH.String()),
-			key.WithHelp("ctrl+/a", "focus previous panel"),
+			key.WithHelp("ctrl+/h", "focus previous panel"),
 		),
 		FocusRight: key.NewBinding(
 			// like vim
 			// https://github.com/christoomey/vim-tmux-navigator
 			key.WithKeys(tea.KeyCtrlL.String()),
-			key.WithHelp("ctrl+/d", "focus next panel"),
+			key.WithHelp("ctrl+/l", "focus next panel"),
 		),
 		Help: key.NewBinding(
 			key.WithKeys("?"),

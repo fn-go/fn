@@ -1,6 +1,6 @@
-package ui
+package util
 
 type Dimensions struct {
-	Width  int
 	Height int
+	Width  int
 }

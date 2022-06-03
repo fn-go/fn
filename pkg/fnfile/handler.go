@@ -1,22 +1,11 @@
 package fnfile
 
-type Handler interface {
-	Exec(ResponseWriter, *CallInfo)
+type StepHandler interface {
+	Handle(w ResponseWriter, c *FnContext)
 }
 
-type HandlerFunc func(ResponseWriter, *CallInfo)
+type StepHandlerFunc func(w ResponseWriter, c *FnContext)
 
-// Exec calls f(ctx).
-func (f HandlerFunc) Exec(w ResponseWriter, c *CallInfo) {
+func (f StepHandlerFunc) Handle(w ResponseWriter, c *FnContext) {
 	f(w, c)
-}
-
-func validateHandlerParams(w ResponseWriter, c *CallInfo) {
-	if w == nil {
-		panic("invalid ResponseWriter")
-	}
-
-	if c == nil {
-		panic("invalid CallInfo")
-	}
 }

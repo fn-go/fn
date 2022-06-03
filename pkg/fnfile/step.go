@@ -2,86 +2,59 @@ package fnfile
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"reflect"
 
-	"github.com/ghostsquad/go-timejumper"
+	"github.com/hashicorp/go-multierror"
+	"github.com/samber/lo"
 )
-
-type StepType string
 
 type Steps []Step
 
-func (steps *Steps) UnmarshalJSON(data []byte) error {
-	// a series of steps can be shortcut represented as a single step
-	step, err := StepFromJson(data)
-	if err == nil {
-		*steps = Steps{
-			step,
-		}
-		return nil
-	}
-
-	// Otherwise unmarshal into a list of steps
-	var sRaw []json.RawMessage
-	err = json.Unmarshal(data, &sRaw)
+func (steps *Steps) UnmarshalJSON(data []byte) (err error) {
+	var tmpList []json.RawMessage
+	err = json.Unmarshal(data, &tmpList)
 	if err != nil {
-		return fmt.Errorf("unmarshalling to []step: %w", err)
+		return fmt.Errorf("unmarshalling steps to list: %w", err)
 	}
 
-	tmpSteps := make(Steps, len(sRaw))
-	i := 0
-	for _, s := range sRaw {
-		step, err := StepFromJson(s)
-		if err != nil {
-			return err
-		}
-		tmpSteps[i] = step
-		i++
+	var mErr *multierror.Error
+
+	tmpSteps := make([]Step, len(tmpList))
+	for i, s := range tmpList {
+		tmpSteps[i], err = UnmarshalStep(s)
+		mErr = multierror.Append(mErr, err)
 	}
 
 	*steps = tmpSteps
-	return nil
-}
 
-type StepJson struct {
-	Sh       *Sh        `json:"sh,omitempty"`
-	Do       *Do        `json:"do,omitempty"`
-	Parallel *Parallel  `json:"parallel,omitempty"`
-	Defer    *DeferSpec `json:"defer,omitempty"`
-}
-
-// StepFromJson allows us to request a map-like syntax when unmarshalling
-// But will resolve to the first field that's not nil
-func StepFromJson(data []byte) (Step, error) {
-	stepJson := StepJson{}
-	err := json.Unmarshal(data, &stepJson)
-	if err != nil {
-		return nil, err
-	}
-
-	v := reflect.ValueOf(stepJson)
-
-	for i := 0; i < v.NumField(); i++ {
-		field := v.Field(i)
-		val := field.Interface().(Step)
-		if val != nil {
-			return val, nil
-		}
-	}
-
-	return nil, errors.New("yaml schema doesn't match. check the documentation for help")
-}
-
-type ProgrammaticNamer interface {
-	ProgrammaticName() string
+	err = mErr.ErrorOrNil()
+	return
 }
 
 type Step interface {
-	ProgrammaticNamer
+	Accept(visitor StepVisitor)
+}
 
-	Exec(ResponseWriter, *CallInfo)
+type StepVisitor struct {
+	VisitDefer    func(d DeferSpec)
+	VisitDo       func(do Do)
+	VisitFnStep   func(fn FnStepSpec)
+	VisitMatrix   func(m Matrix)
+	VisitParallel func(p Parallel)
+	VisitReturn   func(r ReturnSpec)
+	VisitSh       func(sh Sh)
+}
+
+func NewStepVisitor(w ResponseWriter, c *FnContext) StepVisitor {
+	return StepVisitor{
+		VisitDefer:    HandleStepWith[DeferSpec](w, c),
+		VisitDo:       HandleStepWith[Do](w, c),
+		VisitFnStep:   HandleStepWith[FnStepSpec](w, c),
+		VisitMatrix:   HandleStepWith[Matrix](w, c),
+		VisitParallel: HandleStepWith[Parallel](w, c),
+		VisitReturn:   HandleStepWith[ReturnSpec](w, c),
+		VisitSh:       HandleStepWith[Sh](w, c),
+	}
 }
 
 type StepMeta struct {
@@ -89,32 +62,66 @@ type StepMeta struct {
 	Name string `json:"-"`
 	// Locals are variables available to this step and all child steps (like a closure)
 	Locals Vars `json:"vars,omitempty"`
-	// Timeout is the bounding time limit (duration) for  before signalling for termination
+	// Timeout is the bounding time limit (duration) for  before signaling for termination
 	Timeout Duration `json:"timeout,omitempty"`
-
-	clock    timejumper.Clock
-	stepType StepType
-	parent   ProgrammaticNamer
 }
 
-func (s StepMeta) ProgrammaticName() string {
-	var prefix string
+type StepName string
 
-	if s.parent != nil {
-		prefix = s.parent.ProgrammaticName() + ": "
+const (
+	DeferStep    StepName = "defer"
+	DoStep       StepName = "do"
+	FnStep       StepName = "fn"
+	MatrixStep   StepName = "matrix"
+	ParallelStep StepName = "parallel"
+	ReturnStep   StepName = "return"
+	ShStep       StepName = "sh"
+)
+
+func UnmarshalStep(data []byte) (Step, error) {
+	tmpMap := make(map[string]json.RawMessage)
+
+	var err error
+	err = json.Unmarshal(data, &tmpMap)
+	if err != nil {
+		// TODO improve this error with guidance to the user on how to fix
+		return nil, fmt.Errorf("ambiguous step, no name key")
 	}
 
-	return prefix + string(s.stepType) + ": " + s.Name
+	if len(tmpMap) == 0 {
+		// TODO improve this error with guidance to the user on how to fix
+		return nil, fmt.Errorf("empty step? not sure what to do")
+	}
+
+	if len(tmpMap) > 1 {
+		// TODO improve this error with guidance to the user on how to fix
+		return nil, fmt.Errorf("too many keys, expected only 1, the name of the step type")
+	}
+
+	stepName := lo.Keys(tmpMap)[0]
+
+	switch StepName(stepName) {
+	case DeferStep:
+		return UnmarshalDefer(data)
+	case DoStep:
+		return UnmarshalToDo(data)
+	case FnStep:
+		return UnmarshalFnStep(data)
+	case MatrixStep:
+		return UnmarshalMatrix(data)
+	case ParallelStep:
+		return UnmarshalParallel(data)
+	case ReturnStep:
+		return UnmarshalReturn(data)
+	case ShStep:
+		return UnmarshalSh(data)
+	default:
+		panic(fmt.Errorf("unknown step: %s", stepName))
+	}
 }
 
-func NewStepMeta(stepType StepType, parent ProgrammaticNamer) StepMeta {
-	m := StepMeta{
-		Name:     "anonymous",
-		Locals:   make(Vars),
-		clock:    timejumper.RealClock{},
-		stepType: stepType,
-		parent:   parent,
+func HandleStepWith[T StepHandler](w ResponseWriter, c *FnContext) func(h T) {
+	return func(h T) {
+		h.Handle(w, c)
 	}
-
-	return m
 }

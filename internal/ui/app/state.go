@@ -1,12 +1,16 @@
 package app
 
-type Window struct {
-	Width  int
-	Height int
-}
+import (
+	"github.com/go-fn/fn/internal/util"
+)
 
 type state struct {
-	Window
+	windowDimensions util.Dimensions
+
+	headerDimensions  util.Dimensions
+	bodyDimensions    util.Dimensions
+	sidebarDimensions util.Dimensions
+	footerDimensions  util.Dimensions
 
 	currentFocus      componentKey
 	currentFocusIndex int

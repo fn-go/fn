@@ -1,0 +1,8 @@
+fns:
+  default:
+    do:
+    - sh:
+        run: echo "Hello, World!"
+    - sh:
+        run: |-
+             echo "pwd: ${PWD}"

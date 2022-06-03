@@ -2,28 +2,32 @@ package cmds
 
 import (
 	"fmt"
-	"os"
+	stdos "os"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/hack-pad/hackpadfs/os"
 	"github.com/spf13/cobra"
 
 	"github.com/go-fn/fn/internal/clioptions"
 	"github.com/go-fn/fn/internal/clioptions/iostreams"
 	"github.com/go-fn/fn/internal/ui/app"
+	"github.com/go-fn/fn/pkg/engine"
+	"github.com/go-fn/fn/pkg/fnfile"
 )
 
 const (
 	// https://patorjk.com/software/taag/#p=testall&f=Patorjk's%20Cheese&t=fn
 	// larry 3d
 	//	longDescLarry3d = `
-	//   ___
-	// /'___\
-	///\ \__/   ___
-	//\ \ ,__\/' _  \
-	// \ \ \_//\ \/\ \
-	//  \ \_\ \ \_\ \_\
-	//   \/_/  \/_/\/_/
-	//`
+	//    ___
+	//  /'___\
+	// /\ \__/   ___
+	// \ \ ,__\/' _  \
+	//  \ \ \_//\ \/\ \
+	//   \ \_\ \ \_\ \_\
+	//    \/_/  \/_/\/_/
+	// `
 
 	// lean
 	longDescLean = `
@@ -35,25 +39,17 @@ _/      _/    _/
 `
 )
 
-type model struct {
-	choices  []string         // items on the to-do list
-	cursor   int              // which to-do list item our cursor is pointing at
-	selected map[int]struct{} // which to-do items are selected
-
-	tabs    struct{}
-	sidebar struct{}
-}
-
 func NewRootCmd(ioStreams iostreams.IOStreams) *cobra.Command {
 	globalOpts := clioptions.GlobalOptions{
 		IOStreams: ioStreams,
 	}
 
 	rootCmd := &cobra.Command{
-		Use:   "fn [flags] FN",
-		Short: "fn - a function-oriented interpretation of Make",
-		Long:  longDescLean,
-		Args:  cobra.ArbitraryArgs,
+		Use:           "fn [flags] FN",
+		Short:         "fn - a function-oriented interpretation of Make",
+		Long:          longDescLean,
+		Args:          cobra.ArbitraryArgs,
+		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			return nil
 		},
@@ -70,13 +66,42 @@ func NewRootCmd(ioStreams iostreams.IOStreams) *cobra.Command {
 
 				p := tea.NewProgram(instance, tea.WithAltScreen())
 				if err := p.Start(); err != nil {
-					fmt.Println(fmt.Errorf("starting program: %w", err))
-					os.Exit(1)
+					return fmt.Errorf("starting program: %w", err)
 				}
-			} else {
-				if len(args) == 0 {
-					return runHelp(cmd)
-				}
+				return nil
+			}
+
+			if len(args) == 0 {
+				return runHelp(cmd)
+			}
+
+			wd, err := stdos.Getwd()
+			if err != nil {
+				return err
+			}
+
+			fs, err := os.NewFS().Sub(strings.TrimLeft(wd, "/"))
+			if err != nil {
+				return err
+			}
+
+			fnFile, err := engine.YamlFileReader(func(opts *engine.YamlFileReaderOptions) {
+				opts.FS = fs.(*os.FS)
+			})()
+			if err != nil {
+				return fmt.Errorf("getting default fnfile for reading: %w", err)
+			}
+
+			// look for
+			eng := engine.New(func(opts *engine.Options) {
+				opts.Writer = fnfile.NewStdResponseWriter(ioStreams.Out(), ioStreams.ErrOut())
+			})
+
+			fname := args[0]
+
+			err = eng.Run(cmd.Context(), fnFile.Fns[fname])
+			if err != nil {
+				return fmt.Errorf("running fn: %s: %w", fname, err)
 			}
 
 			return nil

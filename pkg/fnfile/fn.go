@@ -131,6 +131,6 @@ type Fn struct {
 	//  echo:prod
 	Matrix Matrix `json:"matrix,omitempty"`
 
-	// Timeout is the bounding time limit (duration) for the fn before signalling for termination via SIGINT.
+	// Timeout is the bounding time limit (duration) for the fn before signaling for termination via SIGINT.
 	Timeout Duration `json:"Timeout,omitempty"`
 }

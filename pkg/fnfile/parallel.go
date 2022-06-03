@@ -9,32 +9,50 @@ import (
 type Parallel struct {
 	StepMeta
 
-	Steps    []Step `json:"steps"`
-	FailFast bool   `json:"failFast"`
-	Limit    int    `json:"limit"`
+	Steps    Steps `json:"steps"`
+	FailFast bool  `json:"failFast"`
+	Limit    int   `json:"limit"`
 }
 
-func (p Parallel) Exec(w ResponseWriter, c *CallInfo) {
-	validateHandlerParams(w, c)
+func (p Parallel) Accept(visitor StepVisitor) {
+	visitor.VisitParallel(p)
+}
+
+func (p Parallel) Handle(w ResponseWriter, c *FnContext) {
 	if p.FailFast {
 		p.failFast(w, c)
-		return
-	}
-
-	for _, s := range p.Steps {
-		go s.Exec(w, c)
+	} else {
+		p.bestEffort(w, c)
 	}
 }
 
-func (p Parallel) failFast(w ResponseWriter, c *CallInfo) {
-	ctx, cancel := context.WithCancel(c.Context())
+func (p Parallel) bestEffort(w ResponseWriter, c *FnContext) {
+	parentCtx := c.Context()
+	ctx, cancel := context.WithCancel(parentCtx)
 	defer cancel()
+
+	localCallInfo := c.CloneWith(ctx)
+
+	visitor := NewStepVisitor(w, localCallInfo)
+
+	for _, s := range p.Steps {
+		go s.Accept(visitor)
+	}
+}
+
+func (p Parallel) failFast(w ResponseWriter, c *FnContext) {
+	parentCtx := c.Context()
+	ctx, cancel := context.WithCancel(parentCtx)
+	defer cancel()
+
+	localCallInfo := c.CloneWith(ctx)
+
+	visitor := NewStepVisitor(w, localCallInfo)
 
 	var group run.Group
 	for _, s := range p.Steps {
 		group.Add(func() error {
-			w2, _ := withNewDeferrals(w)
-			s.Exec(w2, c.CloneWith(ctx))
+			s.Accept(visitor)
 			return w.ErrorOrNil()
 		}, func(err error) {
 			cancel()
@@ -42,4 +60,8 @@ func (p Parallel) failFast(w ResponseWriter, c *CallInfo) {
 	}
 
 	w.Error(group.Run())
+}
+
+func UnmarshalParallel(data []byte) (Parallel, error) {
+	return Parallel{}, nil
 }

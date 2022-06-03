@@ -1,33 +1,60 @@
 package fnfile
 
 import (
+	"bytes"
 	"context"
 	"io"
+
+	"github.com/ghostsquad/go-timejumper"
 )
 
-type CallInfo struct {
-	ctx context.Context
-	in  io.Reader
+type FnContext struct {
+	ctx    context.Context
+	in     io.Reader
+	clock  timejumper.Clock
+	fnFile FnFile
 }
 
-func (c *CallInfo) In() io.Reader {
+func (c *FnContext) In() io.Reader {
 	return nil
 }
 
-func (c *CallInfo) Context() context.Context {
+func (c *FnContext) Context() context.Context {
 	return c.ctx
 }
 
-func (c *CallInfo) CloneWith(ctx context.Context) *CallInfo {
-	return &CallInfo{
-		ctx: ctx,
-		in:  c.in,
+func (c *FnContext) FnFile() FnFile {
+	return c.fnFile
+}
+
+func (c *FnContext) CloneWith(ctx context.Context) *FnContext {
+	return &FnContext{
+		ctx:   ctx,
+		in:    c.in,
+		clock: c.clock,
 	}
 }
 
-func NewCallInfo(ctx context.Context, in io.Reader) *CallInfo {
-	return &CallInfo{
-		ctx: ctx,
-		in:  in,
+type CallInfoOptions struct {
+	Clock timejumper.Clock
+	In    io.Reader
+}
+
+type CallInfoOption func(options *CallInfoOptions)
+
+func NewCallInfo(ctx context.Context, options ...CallInfoOption) *FnContext {
+	opts := &CallInfoOptions{
+		Clock: timejumper.RealClock{},
+		In:    &bytes.Buffer{},
+	}
+
+	for _, o := range options {
+		o(opts)
+	}
+
+	return &FnContext{
+		ctx:   ctx,
+		in:    opts.In,
+		clock: opts.Clock,
 	}
 }

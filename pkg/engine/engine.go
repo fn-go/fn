@@ -1,7 +1,6 @@
-package protocol
+package engine
 
 import (
-	"bytes"
 	"context"
 	"sync"
 
@@ -14,13 +13,13 @@ type Engine struct {
 	writer fnfile.ResponseWriter
 }
 
-type EngineOptions struct {
+type Options struct {
 	Writer fnfile.ResponseWriter
 }
 
 // New returns a new engine
-func New(options ...func(engineOptions *EngineOptions)) (*Engine, error) {
-	opts := &EngineOptions{
+func New(options ...func(engineOptions *Options)) *Engine {
+	opts := &Options{
 		Writer: fnfile.DiscardResponseWriter{},
 	}
 
@@ -33,15 +32,25 @@ func New(options ...func(engineOptions *EngineOptions)) (*Engine, error) {
 		writer: opts.Writer,
 	}
 
-	return &eng, nil
+	return &eng
 }
 
 func (g *Engine) Run(parentCtx context.Context, fn fnfile.Fn) error {
 	var ctx context.Context
 	ctx, g.cancel = context.WithCancel(parentCtx)
 
-	in := &bytes.Buffer{}
+	// TODO move all this into the `fn`
+	callInfo := fnfile.NewCallInfo(ctx)
+	w2, deferrals := fnfile.WithNewDeferrals(g.writer)
+	visitor := fnfile.NewStepVisitor(w2, callInfo)
 
-	fn.Do.Exec(g.writer, fnfile.NewCallInfo(ctx, in))
+	defer func(deferrals *[]fnfile.StepHandler) {
+		for i := len(*deferrals) - 1; i >= 0; i-- {
+			(*deferrals)[i].Handle(w2, callInfo)
+		}
+	}(deferrals)
+
+	fn.Do.Accept(visitor)
+
 	return g.writer.ErrorOrNil()
 }

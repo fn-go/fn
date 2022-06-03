@@ -1,44 +1,64 @@
 package fnfile
 
-const (
-	DoStepType StepType = "do"
+import (
+	"context"
+	"encoding/json"
+	"fmt"
 )
 
 type Do struct {
 	StepMeta
-	Steps []Step `json:"steps"`
+	Steps Steps `json:"steps"`
 }
 
-func (do Do) Exec(w ResponseWriter, c *CallInfo) {
-	validateHandlerParams(w, c)
-	ctx := c.Context()
+func (do Do) Accept(visitor StepVisitor) {
+	visitor.VisitDo(do)
+}
 
-	w2, d2 := withNewDeferrals(w)
+func (do *Do) UnmarshalJSON(data []byte) (err error) {
+	*do, err = UnmarshalToDo(data)
+	return
+}
 
-	// for now, you cannot defer from a defer
-	deferWriter, _ := withNewDeferrals(w)
+func (do Do) Handle(w ResponseWriter, c *FnContext) {
+	parentCtx := c.Context()
+	ctx, cancel := context.WithCancel(parentCtx)
+	defer cancel()
 
-	defer func() {
-		// execute deferrals in reverse order
-		for i := len(*d2) - 1; i >= 0; i-- {
-			deferral := (*d2)[i]
-			deferral.Exec(deferWriter, c)
-			if w2.ErrorOrNil() != nil {
-				return
-			}
-		}
-	}()
+	visitor := NewStepVisitor(w, c.CloneWith(ctx))
 
 	for _, s := range do.Steps {
+		if w.ErrorOrNil() != nil {
+			cancel()
+		}
 		select {
-		case <-ctx.Done():
-			w.Error(NewCancelledStepError(do.Name, ctx.Err()))
+		case <-parentCtx.Done():
+			w.Error(ctx.Err())
 			return
 		default:
-			s.Exec(w2, c)
-			if w2.ErrorOrNil() != nil {
-				return
-			}
+			s.Accept(visitor)
 		}
 	}
+}
+
+func UnmarshalToDo(data []byte) (Do, error) {
+	// most steps (including this one) can be shortcut represented as a Sh step
+	sh, err := UnmarshalSh(data)
+	if err == nil {
+		return Do{
+			Steps: Steps{
+				sh,
+			},
+		}, nil
+	}
+
+	type DoAlias Do
+	var tmpDo DoAlias
+
+	err = json.Unmarshal(data, &tmpDo)
+	if err != nil {
+		return Do{}, fmt.Errorf("unmarshalling to DoAlias: %w", err)
+	}
+
+	return Do(tmpDo), nil
 }

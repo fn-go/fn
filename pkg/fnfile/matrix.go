@@ -33,8 +33,16 @@ type Matrix struct {
 	Includes KeyValues `json:"includes,omitempty"`
 }
 
-func (m *Matrix) Exec(w ResponseWriter, c *CallInfo) {
-	validateHandlerParams(w, c)
+func (m Matrix) Accept(visitor StepVisitor) {
+	visitor.VisitMatrix(m)
+}
+
+func (m Matrix) Handle(w ResponseWriter, c *FnContext) {
+
+}
+
+func UnmarshalMatrix(data []byte) (Matrix, error) {
+	return Matrix{}, nil
 }
 
 type KeyValues struct {

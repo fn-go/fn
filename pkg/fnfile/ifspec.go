@@ -4,10 +4,6 @@ type IfSpec struct {
 	StepMeta
 }
 
-type Condition interface {
-	Exec(w ResponseWriter, c *CallInfo)
-}
-
 type FileCondition struct {
 	IfSpec
 
@@ -21,7 +17,7 @@ type FileCondition struct {
 	Generates FileGlobs `json:"makes,omitempty"`
 }
 
-func (f *FileCondition) Exec(w ResponseWriter, c *CallInfo) {
+func (f *FileCondition) Exec(w ResponseWriter, c *FnContext) {
 
 }
 
@@ -29,10 +25,6 @@ type FnCondition struct {
 	IfSpec
 
 	Fn Fn `json:"fn"`
-}
-
-func (f *FnCondition) Exec(w ResponseWriter, c *CallInfo) {
-	validateHandlerParams(w, c)
 }
 
 type StepOutcomeCondition struct {

@@ -44,9 +44,12 @@ func New() (Model, error) {
 		return Model{}, err
 	}
 
+	s := newState()
+	s.sidebarDimensions.Width = 50
+
 	return Model{
 		keys:  keys.Keys(),
-		state: newState(),
+		state: s,
 
 		components: ui.ComponentsMap[componentKey]{
 			tabsComponentKey:    tabs.New(),
@@ -58,7 +61,15 @@ func New() (Model, error) {
 }
 
 func (m Model) Init() tea.Cmd {
-	return nil
+	cmds := make([]tea.Cmd, len(m.components))
+
+	i := 0
+	for k, c := range m.components {
+		cmd := c.Init()
+		m.components[k], cmds[i] = c.Update(cmd)
+	}
+
+	return tea.Batch(cmds...)
 }
 
 func (m Model) Update(updateMsg tea.Msg) (tea.Model, tea.Cmd) {
@@ -137,8 +148,10 @@ func (m Model) updateComponent(key componentKey, teaMsg tea.Msg) (Model, tea.Cmd
 }
 
 func (m Model) onWindowSizeChange(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
-	m.state.Window.Height = msg.Height
-	m.state.Window.Width = msg.Width
+	m.state.windowDimensions.Height = msg.Height
+	m.state.windowDimensions.Width = msg.Width
+
+	m.state.bodyDimensions.Width = m.state.windowDimensions.Width - m.state.sidebarDimensions.Width
 
 	cmds := make([]tea.Cmd, len(m.components))
 
