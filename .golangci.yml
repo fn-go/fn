@@ -47,19 +47,19 @@ linters:
   disable-all: true
   enable:
   - bodyclose
-  - deadcode
+#  - deadcode
   - depguard
   - dogsled
   - dupl
   - errcheck
   - exhaustive
-  - funlen
+#  - funlen
   - goconst
-  - gocritic
+#  - gocritic
   - gocyclo
   - gofmt
   - goimports
-  - revive
+#  - revive
   - goprintffuncname
   - gosec
   - gosimple

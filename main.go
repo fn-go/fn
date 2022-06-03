@@ -22,6 +22,8 @@ var (
 const binaryName = "fn"
 
 func main() {
+	fmt.Fprintf(os.Stderr, "%s version: %s %s %s %s", binaryName, version, commit, date, builtBy)
+
 	ctx, cancel := context.WithCancel(context.Background())
 
 	ioStreams := iostreams.NewStdIOStreams()

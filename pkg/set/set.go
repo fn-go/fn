@@ -169,7 +169,7 @@ func (s Set[T]) List() []T {
 
 	// https://github.com/golang/go/issues/47619
 	slices.Sort(res)
-	return []T(res)
+	return res
 }
 
 // UnsortedList returns the slice with contents in random order.
