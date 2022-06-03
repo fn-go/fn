@@ -1,7 +1,37 @@
+name: ci
+
 on:
+  workflow_dispatch:
+  push:
+    branches:
+    - main
   pull_request:
     branches:
     - main
+
+concurrency:
+  group: ${{ github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - uses: asdf-vm/actions/setup@v1
+    - uses: asdf-vm/actions/install@v1
+    # https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#example-1
+    # https://unix.stackexchange.com/questions/98435/using-awk-to-split-a-line-on-single-spaces-not-multiples
+    - run: asdf current golang | tee /dev/stderr | awk '{ print "GO_VERSION="$2 }' > $GITHUB_ENV
+    - uses: actions/cache@v2
+      with:
+        path: |
+          ~/.asdf/installs/golang/${{env.GO_VERSION}}/go
+          ~/.cache/go-build
+        key: ${{runner.os}}-go-${{hashFiles('**/go.sum')}}
+        restore-keys: |
+          {{`${{runner.os}}`}}-go-
+    - run: go test ./...
+    - uses: golangci/golangci-lint-action@v3
