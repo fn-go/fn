@@ -21,6 +21,8 @@ jobs:
       with:
         fetch-depth: 0
     - uses: asdf-vm/actions/setup@v1
+    # TODO add this to a hack script (with any other plugins that aren't part of the standard library)
+    - run: asdf plugin add golangci-lint https://github.com/hypnoglow/asdf-golangci-lint.git
     - uses: asdf-vm/actions/install@v1
     # https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#example-1
     # https://unix.stackexchange.com/questions/98435/using-awk-to-split-a-line-on-single-spaces-not-multiples
@@ -34,4 +36,4 @@ jobs:
         restore-keys: |
           {{`${{runner.os}}`}}-go-
     - run: go test ./...
-    - uses: golangci/golangci-lint-action@v3
+    - run: golangci-lint run ./...
