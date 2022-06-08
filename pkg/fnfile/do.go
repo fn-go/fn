@@ -11,12 +11,8 @@ type Do struct {
 	Steps Steps `json:"steps"`
 }
 
-func (do Do) Accept(visitor StepVisitor) {
-	visitor.VisitDo(do)
-}
-
 func (do *Do) UnmarshalJSON(data []byte) (err error) {
-	*do, err = UnmarshalToDo(data)
+	*do, err = UnmarshalDo(data)
 	return
 }
 
@@ -24,8 +20,6 @@ func (do Do) Handle(w ResponseWriter, c *FnContext) {
 	parentCtx := c.Context()
 	ctx, cancel := context.WithCancel(parentCtx)
 	defer cancel()
-
-	visitor := NewStepVisitor(w, c.CloneWith(ctx))
 
 	for _, s := range do.Steps {
 		if w.ErrorOrNil() != nil {
@@ -36,13 +30,18 @@ func (do Do) Handle(w ResponseWriter, c *FnContext) {
 			w.Error(ctx.Err())
 			return
 		default:
-			s.Accept(visitor)
+			s.Handle(w, c.CloneWith(ctx))
 		}
 	}
 }
 
-func UnmarshalToDo(data []byte) (Do, error) {
-	// most steps (including this one) can be shortcut represented as a Sh step
+func UnmarshalDoStep(data []byte) (Step, error) {
+	return UnmarshalDo(data)
+}
+
+func UnmarshalDo(data []byte) (Do, error) {
+	// most steps (including this one) can be shortcut represented by a string
+	// Do will unmarshal to a nested Sh
 	sh, err := UnmarshalSh(data)
 	if err == nil {
 		return Do{
@@ -52,12 +51,20 @@ func UnmarshalToDo(data []byte) (Do, error) {
 		}, nil
 	}
 
+	// this can also be shortcut represented as just an array
+	steps, err := UnmarshalSteps(data)
+	if err == nil {
+		return Do{
+			Steps: steps,
+		}, nil
+	}
+
 	type DoAlias Do
 	var tmpDo DoAlias
 
 	err = json.Unmarshal(data, &tmpDo)
 	if err != nil {
-		return Do{}, fmt.Errorf("unmarshalling to DoAlias: %w", err)
+		return Do{}, fmt.Errorf("unmarshalling to Do proper: %w", err)
 	}
 
 	return Do(tmpDo), nil

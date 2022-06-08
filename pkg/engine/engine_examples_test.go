@@ -157,7 +157,7 @@ func ExampleEngine_Run_defer() {
 
 	panicOnError(eng.Run(ctx, fn))
 
-	fmt.Printf(out.String())
+	fmt.Print(out.String())
 	// Output: Hello, World
 	// defer 2: Deferred function calls are executed in Last In First Out order. This should show up first.
 	// defer 1: Sub steps of a defer step...

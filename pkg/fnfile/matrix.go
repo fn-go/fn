@@ -1,5 +1,14 @@
 package fnfile
 
+import (
+	"encoding/json"
+	"sort"
+
+	"github.com/samber/lo"
+
+	"github.com/go-fn/fn/pkg/set"
+)
+
 // Matrix is a step/fn hook to define a matrix of step/fn configurations.
 //
 // A matrix allows you to create multiple steps/tasks by performing variable substitution
@@ -29,23 +38,48 @@ type Matrix struct {
 
 	KVs KeyValues `json:"kvs,omitempty"`
 
-	// Includes lets you add additional configuration options to a build matrix step/task that already exists.
-	Includes KeyValues `json:"includes,omitempty"`
+	// Include enables different matrix "shapes" aside from the expected NxM table produced from KVs.
+	// Each key:value pair will be added to each of the matrix combinations, but only if the keys are unique (not part of the original matrix).
+	// For any unoriginal keys, new matrix combinations will be created.
+	Include KeyValues `json:"include,omitempty"`
 }
 
-func (m Matrix) Accept(visitor StepVisitor) {
-	visitor.VisitMatrix(m)
+func (m *Matrix) UnmarshalJSON(data []byte) (err error) {
+	*m, err = UnmarshalMatrix(data)
+	return
 }
 
 func (m Matrix) Handle(w ResponseWriter, c *FnContext) {
+	panic("not implemented!")
+}
 
+func UnmarshalMatrixStep(data []byte) (Step, error) {
+	return UnmarshalMatrix(data)
 }
 
 func UnmarshalMatrix(data []byte) (Matrix, error) {
-	return Matrix{}, nil
+	type MatrixAlias Matrix
+	var tmpMatrix MatrixAlias
+	err := json.Unmarshal(data, &tmpMatrix)
+	return Matrix(tmpMatrix), err
 }
 
-type KeyValues struct {
-	Key    string   `json:"key"`
-	Values []string `json:"values"`
+type KeyValues map[string]set.Set[string]
+
+// fruit: [apple, pear, orange]
+// animal: [cat, dog]
+//
+// should generate
+//
+// apple, cat
+// apple, dog
+// pear, cat
+// pear, dog
+// orange, cat
+// orange, dog
+func GenerateCombinations(kvs KeyValues) []set.Set[string] {
+	keys := lo.Keys(kvs)
+	sort.Strings(keys)
+
+	return nil
 }

@@ -2,6 +2,7 @@ package fnfile
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/hashicorp/go-multierror"
@@ -10,11 +11,20 @@ import (
 
 type Steps []Step
 
-func (steps *Steps) UnmarshalJSON(data []byte) (err error) {
-	var tmpList []json.RawMessage
-	err = json.Unmarshal(data, &tmpList)
+func (steps *Steps) UnmarshalJSON(data []byte) error {
+	result, err := UnmarshalSteps(data)
 	if err != nil {
-		return fmt.Errorf("unmarshalling steps to list: %w", err)
+		return err
+	}
+	*steps = result
+	return nil
+}
+
+func UnmarshalSteps(data []byte) (Steps, error) {
+	var tmpList []json.RawMessage
+	err := json.Unmarshal(data, &tmpList)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshalling steps to list: %w", err)
 	}
 
 	var mErr *multierror.Error
@@ -25,14 +35,16 @@ func (steps *Steps) UnmarshalJSON(data []byte) (err error) {
 		mErr = multierror.Append(mErr, err)
 	}
 
-	*steps = tmpSteps
-
 	err = mErr.ErrorOrNil()
-	return
+	if err != nil {
+		return nil, err
+	}
+
+	return tmpSteps, nil
 }
 
 type Step interface {
-	Accept(visitor StepVisitor)
+	Handle(w ResponseWriter, c *FnContext)
 }
 
 type StepVisitor struct {
@@ -43,18 +55,6 @@ type StepVisitor struct {
 	VisitParallel func(p Parallel)
 	VisitReturn   func(r ReturnSpec)
 	VisitSh       func(sh Sh)
-}
-
-func NewStepVisitor(w ResponseWriter, c *FnContext) StepVisitor {
-	return StepVisitor{
-		VisitDefer:    HandleStepWith[DeferSpec](w, c),
-		VisitDo:       HandleStepWith[Do](w, c),
-		VisitFnStep:   HandleStepWith[FnStepSpec](w, c),
-		VisitMatrix:   HandleStepWith[Matrix](w, c),
-		VisitParallel: HandleStepWith[Parallel](w, c),
-		VisitReturn:   HandleStepWith[ReturnSpec](w, c),
-		VisitSh:       HandleStepWith[Sh](w, c),
-	}
 }
 
 type StepMeta struct {
@@ -76,52 +76,105 @@ const (
 	ParallelStep StepName = "parallel"
 	ReturnStep   StepName = "return"
 	ShStep       StepName = "sh"
+	DynamicStep  StepName = "dynamic"
 )
 
-func UnmarshalStep(data []byte) (Step, error) {
-	tmpMap := make(map[string]json.RawMessage)
+type StepUnmarshaller func(data []byte) (Step, error)
 
-	var err error
-	err = json.Unmarshal(data, &tmpMap)
-	if err != nil {
-		// TODO improve this error with guidance to the user on how to fix
-		return nil, fmt.Errorf("ambiguous step, no name key")
+type stepUnmarshalTuple struct {
+	name StepName
+	fn   StepUnmarshaller
+}
+
+var unmarshalPriorities []stepUnmarshalTuple
+
+var unmarshalFuncsMap = map[StepName]StepUnmarshaller{}
+
+func init() {
+	unmarshalPriorities = []stepUnmarshalTuple{
+		{
+			name: ShStep,
+			fn:   UnmarshalShStep,
+		},
+		{
+			name: DoStep,
+			fn:   UnmarshalDoStep,
+		},
+		{
+			name: ParallelStep,
+			fn:   UnmarshalParallelStep,
+		},
+		{
+			name: FnStep,
+			fn:   UnmarshalFnStepStep,
+		},
+		{
+			name: MatrixStep,
+			fn:   UnmarshalMatrixStep,
+		},
+		{
+			name: DeferStep,
+			fn:   UnmarshalDeferStep,
+		},
+		{
+			name: ReturnStep,
+			fn:   UnmarshalReturnStep,
+		},
+		{
+			name: DynamicStep,
+			fn:   UnmarshalDynamicStep,
+		},
 	}
 
-	if len(tmpMap) == 0 {
-		// TODO improve this error with guidance to the user on how to fix
-		return nil, fmt.Errorf("empty step? not sure what to do")
-	}
-
-	if len(tmpMap) > 1 {
-		// TODO improve this error with guidance to the user on how to fix
-		return nil, fmt.Errorf("too many keys, expected only 1, the name of the step type")
-	}
-
-	stepName := lo.Keys(tmpMap)[0]
-
-	switch StepName(stepName) {
-	case DeferStep:
-		return UnmarshalDefer(data)
-	case DoStep:
-		return UnmarshalToDo(data)
-	case FnStep:
-		return UnmarshalFnStep(data)
-	case MatrixStep:
-		return UnmarshalMatrix(data)
-	case ParallelStep:
-		return UnmarshalParallel(data)
-	case ReturnStep:
-		return UnmarshalReturn(data)
-	case ShStep:
-		return UnmarshalSh(data)
-	default:
-		panic(fmt.Errorf("unknown step: %s", stepName))
+	for _, v := range unmarshalPriorities {
+		unmarshalFuncsMap[v.name] = v.fn
 	}
 }
 
-func HandleStepWith[T StepHandler](w ResponseWriter, c *FnContext) func(h T) {
-	return func(h T) {
-		h.Handle(w, c)
+func UnmarshalStep(data []byte) (Step, error) {
+	// check if the object is "keyed" first aka:
+	// "sh": {}
+	step, err := UnmarshalKeyedStep(data)
+	if err == nil {
+		return step, nil
 	}
+
+	// if we are dealing with an unkeyed object, let's try to unmarshal to various other types,
+	// starting with the most common/expected types first
+	// in the case that multiple steps have identical fields, this becomes a priority list
+	// of which step wins in the face of ambiguity
+	for _, tuple := range unmarshalPriorities {
+		step, err := tuple.fn(data)
+		if err == nil {
+			return step, nil
+		}
+	}
+
+	return nil, errors.New("unknown data, could not unmarshal to any step type")
+}
+
+func UnmarshalKeyedStep(data []byte) (Step, error) {
+	tmpMap := make(map[string]json.RawMessage)
+	err := json.Unmarshal(data, &tmpMap)
+	if err == nil {
+		// TODO improve this error with guidance to the user on how to fix
+		return nil, fmt.Errorf("not a map")
+	}
+
+	if len(tmpMap) != 1 {
+		// TODO improve this error with guidance to the user on how to fix
+		return nil, fmt.Errorf("expected exactly 1 key in map (the name of the step type), but found %d key(s): %v", len(tmpMap), lo.Keys(tmpMap))
+	}
+
+	stepName := lo.Keys(tmpMap)[0]
+	return UnmarshalFromStepName(StepName(stepName), data)
+}
+
+func UnmarshalFromStepName(stepName StepName, data []byte) (Step, error) {
+	unmarshalFunc, ok := unmarshalFuncsMap[stepName]
+	if !ok {
+		return nil, fmt.Errorf("unknown step: %s", stepName)
+	}
+
+	return unmarshalFunc(data)
 }

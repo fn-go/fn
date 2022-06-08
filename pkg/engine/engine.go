@@ -42,7 +42,6 @@ func (g *Engine) Run(parentCtx context.Context, fn fnfile.Fn) error {
 	// TODO move all this into the `fn`
 	callInfo := fnfile.NewCallInfo(ctx)
 	w2, deferrals := fnfile.WithNewDeferrals(g.writer)
-	visitor := fnfile.NewStepVisitor(w2, callInfo)
 
 	defer func(deferrals *[]fnfile.StepHandler) {
 		for i := len(*deferrals) - 1; i >= 0; i-- {
@@ -50,7 +49,7 @@ func (g *Engine) Run(parentCtx context.Context, fn fnfile.Fn) error {
 		}
 	}(deferrals)
 
-	fn.Do.Accept(visitor)
+	fn.Do.Handle(w2, callInfo)
 
 	return g.writer.ErrorOrNil()
 }

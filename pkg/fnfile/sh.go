@@ -25,6 +25,11 @@ type Sh struct {
 	Dir string `json:"dir,omitempty"`
 }
 
+func (sh *Sh) UnmarshalJSON(data []byte) (err error) {
+	*sh, err = UnmarshalSh(data)
+	return
+}
+
 func (sh Sh) Validate() error {
 	var mErr *multierror.Error
 
@@ -33,10 +38,6 @@ func (sh Sh) Validate() error {
 	}
 
 	return mErr.ErrorOrNil()
-}
-
-func (sh Sh) Accept(visitor StepVisitor) {
-	visitor.VisitSh(sh)
 }
 
 func (sh Sh) Handle(w ResponseWriter, c *FnContext) {
@@ -114,9 +115,8 @@ func (sh Sh) Handle(w ResponseWriter, c *FnContext) {
 	}
 }
 
-func (sh *Sh) UnmarshalJSON(data []byte) (err error) {
-	*sh, err = UnmarshalSh(data)
-	return
+func UnmarshalShStep(data []byte) (Step, error) {
+	return UnmarshalSh(data)
 }
 
 // UnmarshalSh attempts to unmarshal to a string to generate
@@ -128,10 +128,9 @@ func UnmarshalSh(data []byte) (Sh, error) {
 	var tmpString string
 	err := json.Unmarshal(data, &tmpString)
 	if err == nil {
-		tmpSh := Sh{
+		return Sh{
 			Run: tmpString,
-		}
-		return tmpSh, nil
+		}, nil
 	}
 
 	type ShAlias Sh
@@ -139,7 +138,7 @@ func UnmarshalSh(data []byte) (Sh, error) {
 
 	err = json.Unmarshal(data, &tmpSh)
 	if err != nil {
-		return Sh{}, err
+		return Sh{}, fmt.Errorf("unmarshalling to Sh proper: %w", err)
 	}
 
 	return Sh(tmpSh), nil

@@ -17,6 +17,7 @@ limitations under the License.
 package set
 
 import (
+	"encoding/json"
 	"reflect"
 
 	"golang.org/x/exp/constraints"
@@ -25,6 +26,22 @@ import (
 
 // Set is a set of comparable types, implemented via map[T]struct{} for minimal memory consumption.
 type Set[T constraints.Ordered] map[T]Empty
+
+func (s *Set[T]) UnmarshalJSON(data []byte) error {
+	values := []T{}
+	err := json.Unmarshal(data, &values)
+	if err != nil {
+		return err
+	}
+
+	tmpSet := make(Set[T], len(values))
+	for _, v := range values {
+		tmpSet[v] = Empty{}
+	}
+
+	*s = tmpSet
+	return nil
+}
 
 // New creates a set from a list of values.
 func New[T constraints.Ordered](items ...T) Set[T] {

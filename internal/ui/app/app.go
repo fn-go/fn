@@ -27,7 +27,6 @@ const (
 
 type Model struct {
 	keys  keys.KeyMap
-	err   error
 	state state
 
 	components ui.ComponentsMap[componentKey]
@@ -152,6 +151,9 @@ func (m Model) onWindowSizeChange(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
 	m.state.windowDimensions.Width = msg.Width
 
 	m.state.bodyDimensions.Width = m.state.windowDimensions.Width - m.state.sidebarDimensions.Width
+	m.state.bodyDimensions.Height = 100
+	m.state.headerDimensions.Height = 30
+	m.state.footerDimensions.Height = 30
 
 	cmds := make([]tea.Cmd, len(m.components))
 
