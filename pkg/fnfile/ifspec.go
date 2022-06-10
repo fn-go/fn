@@ -24,7 +24,7 @@ func (f *FileCondition) Exec(w ResponseWriter, c *FnContext) {
 type FnCondition struct {
 	IfSpec
 
-	Fn Fn `json:"fn"`
+	Fn string `json:"fn"`
 }
 
 type StepOutcomeCondition struct {

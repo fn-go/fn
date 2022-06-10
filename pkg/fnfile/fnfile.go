@@ -16,6 +16,6 @@ type FnFile struct {
 	// More on namespacing later...
 	Includes Includes `json:"includes,omitempty"`
 
-	// Fns is a set of function definitions
-	Fns Fns `json:"fns,omitempty"`
+	// Def is a set of function definitions
+	Fns FnDefs `json:"fns,omitempty"`
 }

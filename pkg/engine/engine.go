@@ -35,7 +35,7 @@ func New(options ...func(engineOptions *Options)) *Engine {
 	return &eng
 }
 
-func (g *Engine) Run(parentCtx context.Context, fn fnfile.Fn) error {
+func (g *Engine) Run(parentCtx context.Context, fn fnfile.FnDef) error {
 	var ctx context.Context
 	ctx, g.cancel = context.WithCancel(parentCtx)
 

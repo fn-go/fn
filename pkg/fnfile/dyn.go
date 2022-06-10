@@ -8,6 +8,8 @@ import (
 type Dynamic struct {
 	StepMeta
 	JSON string `json:"json,omitempty"`
+
+	//resolved Step
 }
 
 func (dynamic Dynamic) Handle(w ResponseWriter, c *FnContext) {

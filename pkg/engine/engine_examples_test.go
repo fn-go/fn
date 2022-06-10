@@ -29,7 +29,7 @@ func ExampleEngine_Run_do_sh() {
 
 	ctx := context.TODO()
 
-	fn := fnfile.Fn{
+	fn := fnfile.FnDef{
 		Name: "test",
 		Do: fnfile.Do{
 			Steps: fnfile.Steps{
@@ -54,7 +54,7 @@ func ExampleEngine_Run_do_nested() {
 
 	ctx := context.TODO()
 
-	fn := fnfile.Fn{
+	fn := fnfile.FnDef{
 		Name: "test",
 		Do: fnfile.Do{
 			Steps: fnfile.Steps{
@@ -91,7 +91,7 @@ func ExampleEngine_Run_do_stop_on_failure() {
 
 	ctx := context.TODO()
 
-	fn := fnfile.Fn{
+	fn := fnfile.FnDef{
 		Name: "test",
 		Do: fnfile.Do{
 			Steps: fnfile.Steps{
@@ -123,7 +123,7 @@ func ExampleEngine_Run_defer() {
 
 	ctx := context.TODO()
 
-	fn := fnfile.Fn{
+	fn := fnfile.FnDef{
 		Name: "test",
 		Do: fnfile.Do{
 			Steps: fnfile.Steps{

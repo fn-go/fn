@@ -2,7 +2,6 @@ package fnfile
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 
 	"github.com/hashicorp/go-multierror"
@@ -27,20 +26,17 @@ func UnmarshalSteps(data []byte) (Steps, error) {
 		return nil, fmt.Errorf("unmarshalling steps to list: %w", err)
 	}
 
-	var mErr *multierror.Error
+	var subStepErrors *multierror.Error
 
 	tmpSteps := make([]Step, len(tmpList))
 	for i, s := range tmpList {
 		tmpSteps[i], err = UnmarshalStep(s)
-		mErr = multierror.Append(mErr, err)
+		if err != nil {
+			subStepErrors = multierror.Append(subStepErrors, fmt.Errorf("trying to unmarshal step[%d]: %w", i, err))
+		}
 	}
 
-	err = mErr.ErrorOrNil()
-	if err != nil {
-		return nil, err
-	}
-
-	return tmpSteps, nil
+	return tmpSteps, subStepErrors.ErrorOrNil()
 }
 
 type Step interface {
@@ -50,7 +46,7 @@ type Step interface {
 type StepVisitor struct {
 	VisitDefer    func(d DeferSpec)
 	VisitDo       func(do Do)
-	VisitFnStep   func(fn FnStepSpec)
+	VisitFnStep   func(fn Fn)
 	VisitMatrix   func(m Matrix)
 	VisitParallel func(p Parallel)
 	VisitReturn   func(r ReturnSpec)
@@ -82,8 +78,8 @@ const (
 type StepUnmarshaller func(data []byte) (Step, error)
 
 type stepUnmarshalTuple struct {
-	name StepName
-	fn   StepUnmarshaller
+	name         StepName
+	unmarshaller StepUnmarshaller
 }
 
 var unmarshalPriorities []stepUnmarshalTuple
@@ -93,41 +89,41 @@ var unmarshalFuncsMap = map[StepName]StepUnmarshaller{}
 func init() {
 	unmarshalPriorities = []stepUnmarshalTuple{
 		{
-			name: ShStep,
-			fn:   UnmarshalShStep,
+			name:         ShStep,
+			unmarshaller: UnmarshalShStep,
 		},
 		{
-			name: DoStep,
-			fn:   UnmarshalDoStep,
+			name:         DoStep,
+			unmarshaller: UnmarshalDoStep,
 		},
 		{
-			name: ParallelStep,
-			fn:   UnmarshalParallelStep,
+			name:         ParallelStep,
+			unmarshaller: UnmarshalParallelStep,
 		},
 		{
-			name: FnStep,
-			fn:   UnmarshalFnStepStep,
+			name:         FnStep,
+			unmarshaller: UnmarshalFnStep,
 		},
 		{
-			name: MatrixStep,
-			fn:   UnmarshalMatrixStep,
+			name:         MatrixStep,
+			unmarshaller: UnmarshalMatrixStep,
 		},
 		{
-			name: DeferStep,
-			fn:   UnmarshalDeferStep,
+			name:         DeferStep,
+			unmarshaller: UnmarshalDeferStep,
 		},
 		{
-			name: ReturnStep,
-			fn:   UnmarshalReturnStep,
+			name:         ReturnStep,
+			unmarshaller: UnmarshalReturnStep,
 		},
 		{
-			name: DynamicStep,
-			fn:   UnmarshalDynamicStep,
+			name:         DynamicStep,
+			unmarshaller: UnmarshalDynamicStep,
 		},
 	}
 
 	for _, v := range unmarshalPriorities {
-		unmarshalFuncsMap[v.name] = v.fn
+		unmarshalFuncsMap[v.name] = v.unmarshaller
 	}
 }
 
@@ -143,14 +139,16 @@ func UnmarshalStep(data []byte) (Step, error) {
 	// starting with the most common/expected types first
 	// in the case that multiple steps have identical fields, this becomes a priority list
 	// of which step wins in the face of ambiguity
+	var attemptErrs *multierror.Error
 	for _, tuple := range unmarshalPriorities {
-		step, err := tuple.fn(data)
+		step, err := tuple.unmarshaller(data)
 		if err == nil {
 			return step, nil
 		}
+		attemptErrs = multierror.Append(attemptErrs, fmt.Errorf("trying as %s: %w", tuple.name, err))
 	}
 
-	return nil, errors.New("unknown data, could not unmarshal to any step type")
+	return nil, GivingUp(attemptErrs)
 }
 
 func UnmarshalKeyedStep(data []byte) (Step, error) {

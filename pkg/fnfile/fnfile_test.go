@@ -26,7 +26,7 @@ fns:
 
 	expected := FnFile{
 		Version: "0.1",
-		Fns: map[string]Fn{
+		Fns: map[string]FnDef{
 			"test": {
 				Name: "test",
 				Do: Do{

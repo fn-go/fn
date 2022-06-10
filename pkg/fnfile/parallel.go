@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/oklog/run"
 )
 
@@ -12,8 +13,8 @@ type Parallel struct {
 	StepMeta
 
 	Steps    Steps `json:"steps"`
-	FailFast bool  `json:"failFast"`
-	Limit    int   `json:"limit"`
+	FailFast bool  `json:"failFast,omitempty"`
+	Limit    int   `json:"limit,omitempty"`
 }
 
 func (p *Parallel) UnmarshalJSON(data []byte) (err error) {
@@ -66,6 +67,8 @@ func UnmarshalParallelStep(data []byte) (Step, error) {
 }
 
 func UnmarshalParallel(data []byte) (Parallel, error) {
+	var attemptErrs *multierror.Error
+
 	// most steps (including this one) can be shortcut represented by a string
 	// Parallel will unmarshal to a nested Sh
 	sh, err := UnmarshalSh(data)
@@ -76,6 +79,7 @@ func UnmarshalParallel(data []byte) (Parallel, error) {
 			},
 		}, nil
 	}
+	attemptErrs = multierror.Append(attemptErrs, fmt.Errorf("trying sh shortcut: %w", err))
 
 	// this can also be shortcut represented as just an array
 	steps, err := UnmarshalSteps(data)
@@ -84,14 +88,16 @@ func UnmarshalParallel(data []byte) (Parallel, error) {
 			Steps: steps,
 		}, nil
 	}
+	attemptErrs = multierror.Append(attemptErrs, fmt.Errorf("trying array shortcut: %w", err))
 
 	type ParallelAlias Parallel
 	var tmpParallel ParallelAlias
 
 	err = json.Unmarshal(data, &tmpParallel)
-	if err != nil {
-		return Parallel{}, fmt.Errorf("unmarshalling to Parallel proper: %w", err)
+	if err == nil {
+		return Parallel(tmpParallel), nil
 	}
+	attemptErrs = multierror.Append(attemptErrs, fmt.Errorf("trying as Parallel proper: %w", err))
 
-	return Parallel(tmpParallel), nil
+	return Parallel{}, GivingUp(attemptErrs)
 }

@@ -3,6 +3,8 @@ package fnfile
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/hashicorp/go-multierror"
 )
 
 type DeferSpec struct {
@@ -24,6 +26,8 @@ func UnmarshalDeferStep(data []byte) (Step, error) {
 }
 
 func UnmarshalDefer(data []byte) (DeferSpec, error) {
+	var attemptErrs *multierror.Error
+
 	// most steps (including this one) can be shortcut represented by a string
 	// defer will unmarshal to a nested Sh
 	sh, err := UnmarshalSh(data)
@@ -36,6 +40,7 @@ func UnmarshalDefer(data []byte) (DeferSpec, error) {
 			},
 		}, nil
 	}
+	attemptErrs = multierror.Append(attemptErrs, fmt.Errorf("trying sh shortcut: %w", err))
 
 	// this can also be shortcut represented as just an array
 	steps, err := UnmarshalSteps(data)
@@ -46,14 +51,16 @@ func UnmarshalDefer(data []byte) (DeferSpec, error) {
 			},
 		}, nil
 	}
+	attemptErrs = multierror.Append(attemptErrs, fmt.Errorf("trying array shortcut: %w", err))
 
 	type DeferAlias DeferSpec
 	var tmpDefer DeferAlias
 
 	err = json.Unmarshal(data, &tmpDefer)
-	if err != nil {
-		return DeferSpec{}, fmt.Errorf("unmarshalling to Defer proper: %w", err)
+	if err == nil {
+		return DeferSpec(tmpDefer), nil
 	}
+	attemptErrs = multierror.Append(attemptErrs, fmt.Errorf("trying as Defer proper: %w", err))
 
-	return DeferSpec(tmpDefer), nil
+	return DeferSpec{}, GivingUp(attemptErrs)
 }

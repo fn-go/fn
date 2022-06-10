@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
+	"github.com/hashicorp/go-multierror"
 )
 
 type Do struct {
@@ -40,6 +42,8 @@ func UnmarshalDoStep(data []byte) (Step, error) {
 }
 
 func UnmarshalDo(data []byte) (Do, error) {
+	var attemptErrs *multierror.Error
+
 	// most steps (including this one) can be shortcut represented by a string
 	// Do will unmarshal to a nested Sh
 	sh, err := UnmarshalSh(data)
@@ -50,6 +54,7 @@ func UnmarshalDo(data []byte) (Do, error) {
 			},
 		}, nil
 	}
+	attemptErrs = multierror.Append(attemptErrs, fmt.Errorf("trying sh shortcut: %w", err))
 
 	// this can also be shortcut represented as just an array
 	steps, err := UnmarshalSteps(data)
@@ -58,14 +63,16 @@ func UnmarshalDo(data []byte) (Do, error) {
 			Steps: steps,
 		}, nil
 	}
+	attemptErrs = multierror.Append(attemptErrs, fmt.Errorf("trying array shortcut: %w", err))
 
 	type DoAlias Do
 	var tmpDo DoAlias
 
 	err = json.Unmarshal(data, &tmpDo)
-	if err != nil {
-		return Do{}, fmt.Errorf("unmarshalling to Do proper: %w", err)
+	if err == nil {
+		return Do(tmpDo), nil
 	}
+	attemptErrs = multierror.Append(attemptErrs, fmt.Errorf("trying as Do proper: %w", err))
 
-	return Do(tmpDo), nil
+	return Do{}, GivingUp(attemptErrs)
 }

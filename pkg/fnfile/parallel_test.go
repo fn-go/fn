@@ -13,7 +13,7 @@ func TestUnmarshalParallel(t *testing.T) {
 				return Parallel{
 					Steps: Steps{
 						Sh{
-							Run: value,
+							Run: `echo "hello"`,
 						},
 					},
 				}
@@ -23,17 +23,17 @@ func TestUnmarshalParallel(t *testing.T) {
 			name: "array shorthand",
 			data: `
 [
-  "echo \"first\"",
-  "echo \"second\""
+  "echo \"hello\"",
+  "echo \"world\""
 ]
 `,
 			want: Parallel{
 				Steps: Steps{
 					Sh{
-						Run: `echo "first"`,
+						Run: `echo "hello"`,
 					},
 					Sh{
-						Run: `echo "second"`,
+						Run: `echo "world"`,
 					},
 				},
 			},
