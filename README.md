@@ -89,8 +89,34 @@ TBD
 
 ## Roadmap
 
-- [ ] Milestone 1 - Alpha
-- [ ] Create Roadmap
+| Status | Goal                                                   | Labels  |
+|:------:|:-------------------------------------------------------|---------|
+|   ✅    | Create RoadMap                                         |         |
+|   🚧   | Implement Basic Step Types                             | `alpha` |
+|   ✅    | *- Sh (shell out)*                                     | `alpha` |
+|   ✅    | *- Do (serial steps)*                                  | `alpha` |
+|   ✅    | *- Parallel (parallel steps)*                          | `alpha` |
+|   ✅    | *- Defer (end of parent)*                              | `alpha` |
+|   🚧   | *- Fn (call another function)*                         | `alpha` |
+|   🚧   | Vars Support                                           | `alpha` |
+|   🚧   | Env Support                                            | `alpha` |
+|   🚧   | Ctx Support                                            | `alpha` |
+|   🚧   | Templating Support                                     | `alpha` |
+|   -    | CLI Args Support                                       | `alpha` |
+|   -    | Linear Output (log-like)                               | `alpha` |
+|   -    | Progress/Spinner Output                                | `alpha` |
+|   -    | Robust Documentation (follows the code)                | `alpha` |
+|   -    | BubbleTea based UI                                     | `beta`  |
+|   -    | Viddy/Watch Integration                                | `beta`  |
+|   -    | FSNotify Integration                                   | `beta`  |
+|   -    | Implement Advanced Step Types                          | `beta`  |
+|   -    | *- Matrix (dynamic steps based on combination matrix)* | `beta`  |
+|   -    | *- Return (end early)*                                 | `beta`  |
+|   -    | Other Advanced Features                                | `beta`  |
+|   -    | *- Ns (namespaces/includes)*                           | `beta`  |
+|   -    | *- SerialGroups (for use with parallel)*               | `beta`  |
+|   -    | *- Inputs/Outputs (for functions)*                     | `beta`  |
+
 
 ## Attribution
 
