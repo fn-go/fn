@@ -43,16 +43,6 @@ type Step interface {
 	Handle(w ResponseWriter, c *FnContext)
 }
 
-type StepVisitor struct {
-	VisitDefer    func(d DeferSpec)
-	VisitDo       func(do Do)
-	VisitFnStep   func(fn Fn)
-	VisitMatrix   func(m Matrix)
-	VisitParallel func(p Parallel)
-	VisitReturn   func(r ReturnSpec)
-	VisitSh       func(sh Sh)
-}
-
 type StepMeta struct {
 	// Name is the user defined name of the step. Defaults to "anonymous"
 	Name string `json:"-"`
@@ -73,6 +63,7 @@ const (
 	ReturnStep   StepName = "return"
 	ShStep       StepName = "sh"
 	DynamicStep  StepName = "dynamic"
+	GoStep       StepName = "go"
 )
 
 type StepUnmarshaller func(data []byte) (Step, error)
@@ -119,6 +110,10 @@ func init() {
 		{
 			name:         DynamicStep,
 			unmarshaller: UnmarshalDynamicStep,
+		},
+		{
+			name:         GoStep,
+			unmarshaller: UnmarshalGoSpecStep,
 		},
 	}
 
