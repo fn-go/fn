@@ -1,16 +1,7 @@
 package fnfile
 
-import (
-	"encoding/json"
-	"fmt"
-
-	"github.com/samber/lo"
-)
-
 type FnDef struct {
 	Name string `json:"-"`
-
-	Run RunOption `json:"run,omitempty"`
 
 	// Inputs are parameters for this FnDef, used when called by another FnDef.
 	Inputs Inputs `json:"inputs,omitempty"`
@@ -61,7 +52,8 @@ type FnDef struct {
 	//
 	// When defined on a fn, it dynamically creates several fns, suffixing the fn name with the matrix values.
 	//
-	// Each individual fn can be called. The original fn becomes a "virtual fn" that "needs" the matrix of fns.
+	// Each individual fn can be called. The original fn becomes a "virtual fn"
+	// that will run the matrix of fns in parallel (or serial if requested).
 	// Allowing you to call all matrix fns from the single "parent" virtual fn.
 	//
 	// For example, you can use a matrix to create fns for more than one supported version of a programming language,
@@ -86,33 +78,4 @@ type FnDef struct {
 
 	// Timeout is the bounding time limit (duration) for the fn before signaling for termination via SIGINT.
 	Timeout Duration `json:"Timeout,omitempty"`
-}
-
-type RunOption string
-
-func (r *RunOption) UnmarshalJSON(data []byte) error {
-	var tmpVal string
-	err := json.Unmarshal(data, &tmpVal)
-	if err != nil {
-		return err
-	}
-
-	onceValue := "once"
-
-	if tmpVal == "" {
-		*r = RunOption(onceValue)
-		return nil
-	}
-
-	validValues := []string{
-		onceValue,
-		"unlimited",
-	}
-
-	if lo.Contains(validValues, tmpVal) {
-		*r = RunOption(tmpVal)
-		return nil
-	}
-
-	return fmt.Errorf("unknown run value: %s, valid values are: %v", tmpVal, validValues)
 }

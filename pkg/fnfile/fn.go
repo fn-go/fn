@@ -7,7 +7,7 @@ import (
 
 type Fn struct {
 	StepMeta
-	Run string `json:"run,omitempty"`
+	Call string `json:"call,omitempty"`
 }
 
 func (fn *Fn) UnmarshalJSON(data []byte) (err error) {
@@ -17,7 +17,7 @@ func (fn *Fn) UnmarshalJSON(data []byte) (err error) {
 
 func (fn Fn) Handle(w ResponseWriter, c *FnContext) {
 	fnfile := c.FnFile()
-	if target, ok := fnfile.Fns[fn.Run]; ok {
+	if target, ok := fnfile.Fns[fn.Call]; ok {
 		target.Do.Handle(w, c)
 	}
 }
@@ -35,7 +35,7 @@ func UnmarshalFnFromStringData(data []byte) (Fn, error) {
 	}
 
 	return Fn{
-		Run: tmpString,
+		Call: tmpString,
 	}, nil
 }
 

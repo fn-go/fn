@@ -34,10 +34,9 @@ An example to get you started:
 
 > `fnfile.yml`
 ```yaml
-version: '1'
+version: '0.1'
 fns:
-  hello:
-    do: echo "Hello, World!"
+  hello: echo "Hello, World!"
 ```
 
 ```shell

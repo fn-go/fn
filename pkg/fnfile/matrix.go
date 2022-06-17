@@ -41,7 +41,9 @@ type Matrix struct {
 	// Include enables different matrix "shapes" aside from the expected NxM table produced from KVs.
 	// Each key:value pair will be added to each of the matrix combinations, but only if the keys are unique (not part of the original matrix).
 	// For any unoriginal keys, new matrix combinations will be created.
-	Include KeyValues `json:"include,omitempty"`
+	Include []KeyValues `json:"include,omitempty"`
+
+	Serial bool `json:"serial,omitempty"`
 }
 
 func (m *Matrix) UnmarshalJSON(data []byte) (err error) {

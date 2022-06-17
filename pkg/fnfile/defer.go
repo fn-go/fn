@@ -9,7 +9,7 @@ import (
 
 type DeferSpec struct {
 	StepMeta
-	Do
+	Do Do `json:"do,omitempty"`
 }
 
 func (spec *DeferSpec) UnmarshalJSON(data []byte) (err error) {
